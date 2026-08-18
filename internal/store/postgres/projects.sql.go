@@ -9,6 +9,30 @@ import (
 	"context"
 )
 
+const createProject = `-- name: CreateProject :one
+insert into projects (name, slug)
+values ($1, $2)
+returning id, name, slug, status, created_at
+`
+
+type CreateProjectParams struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
+	row := q.db.QueryRow(ctx, createProject, arg.Name, arg.Slug)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getProjectBySlug = `-- name: GetProjectBySlug :one
 select id, name, slug, status, created_at from projects where slug = $1
 `

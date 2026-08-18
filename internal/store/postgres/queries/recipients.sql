@@ -11,7 +11,10 @@ select * from notification_recipients where notification_id = $1 and device_id =
 select * from notification_recipients where id = $1;
 
 -- name: ListNotificationRecipients :many
-select * from notification_recipients where notification_id = $1 order by created_at;
+select nr.* from notification_recipients nr
+join notifications n on n.id = nr.notification_id
+where nr.notification_id = $1 and n.project_id = $2
+order by nr.created_at;
 
 -- name: MarkRecipientSending :one
 update notification_recipients

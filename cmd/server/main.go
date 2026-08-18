@@ -23,7 +23,9 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 
+	"github.com/firemanx07/slay-push/internal/apikey"
 	"github.com/firemanx07/slay-push/internal/config"
+	"github.com/firemanx07/slay-push/internal/crypto"
 	"github.com/firemanx07/slay-push/internal/dispatch"
 	"github.com/firemanx07/slay-push/internal/platform"
 	_ "github.com/firemanx07/slay-push/internal/provider/apns" // self-registers "apns" into the provider registry
@@ -67,6 +69,10 @@ func main() {
 		os.Exit(runHealthcheckProbe(cfg))
 	case "seed-credential":
 		err = runSeedCredential(cfg, logger, os.Args[2:])
+	case "create-project":
+		err = runCreateProject(cfg, logger, os.Args[2:])
+	case "create-api-key":
+		err = runCreateAPIKey(cfg, logger, os.Args[2:])
 	case "bootstrap":
 		err = errors.New("bootstrap: not yet implemented")
 	case "rotate-key":
@@ -83,7 +89,7 @@ func main() {
 }
 
 func usage() string {
-	return "usage: server <serve-all|serve-api|serve-dashboard|worker|migrate|healthcheck|seed-credential|bootstrap|rotate-key>"
+	return "usage: server <serve-all|serve-api|serve-dashboard|worker|migrate|healthcheck|seed-credential|create-project|create-api-key|bootstrap|rotate-key>"
 }
 
 // runHealthcheckProbe lets `docker compose healthcheck:` call the binary
@@ -112,6 +118,11 @@ func runHealthcheckProbe(cfg config.Config) int {
 // device, create notification, get status) plus /healthz. serve-api/
 // serve-dashboard are aliases for serve-all.
 func runServe(cfg config.Config, logger zerolog.Logger) error {
+	masterKey, err := crypto.LoadMasterKey(cfg.MasterKey)
+	if err != nil {
+		return fmt.Errorf("load master key: %w", err)
+	}
+
 	ctx := context.Background()
 
 	db, err := platform.NewPostgresPool(ctx, cfg.DatabaseURL)
@@ -135,9 +146,10 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 	defer asynqClient.Close()
 
 	targetingRegistry := targeting.NewRegistry(queries)
-	dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, logger)
+	dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
+	rateLimiter := apikey.NewRateLimiter(rdb, cfg.DefaultRateLimitRPS, logger)
 
-	apiServer := &apihttp.Server{DB: queries, Dispatch: dispatchHandlers, Logger: logger}
+	apiServer := &apihttp.Server{DB: queries, Dispatch: dispatchHandlers, RateLimiter: rateLimiter, Logger: logger}
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", platform.HealthHandler(db, rdb))
@@ -171,6 +183,11 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 // plus one queue per provider (send:fcm/expo/apns/hms). asynq.Server.Run
 // handles SIGINT/SIGTERM with a graceful shutdown internally.
 func runWorker(cfg config.Config, logger zerolog.Logger) error {
+	masterKey, err := crypto.LoadMasterKey(cfg.MasterKey)
+	if err != nil {
+		return fmt.Errorf("load master key: %w", err)
+	}
+
 	ctx := context.Background()
 
 	db, err := platform.NewPostgresPool(ctx, cfg.DatabaseURL)
@@ -188,7 +205,7 @@ func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	defer asynqClient.Close()
 
 	targetingRegistry := targeting.NewRegistry(queries)
-	handlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, logger)
+	handlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
 
 	redisOpt, err := queue.ParseRedisOpt(cfg.RedisURL)
 	if err != nil {
@@ -245,6 +262,11 @@ func runSeedCredential(cfg config.Config, logger zerolog.Logger, args []string) 
 		return errors.New("seed-credential: --file is required")
 	}
 
+	masterKey, err := crypto.LoadMasterKey(cfg.MasterKey)
+	if err != nil {
+		return fmt.Errorf("load master key: %w", err)
+	}
+
 	raw, err := os.ReadFile(*file)
 	if err != nil {
 		return fmt.Errorf("read credential file: %w", err)
@@ -252,6 +274,11 @@ func runSeedCredential(cfg config.Config, logger zerolog.Logger, args []string) 
 	var js json.RawMessage
 	if err := json.Unmarshal(raw, &js); err != nil {
 		return fmt.Errorf("credential file is not valid JSON: %w", err)
+	}
+
+	wrappedDEK, ciphertext, err := masterKey.Seal(raw)
+	if err != nil {
+		return fmt.Errorf("encrypt credential: %w", err)
 	}
 
 	ctx := context.Background()
@@ -271,11 +298,91 @@ func runSeedCredential(cfg config.Config, logger zerolog.Logger, args []string) 
 		ProjectID:    project.ID,
 		ProviderType: *providerType,
 		Environment:  "production",
-		Credential:   raw,
+		Credential:   ciphertext,
+		WrappedDek:   wrappedDEK,
 	}); err != nil {
 		return fmt.Errorf("upsert provider credential: %w", err)
 	}
 
 	logger.Info().Str("provider", *providerType).Str("project", *projectSlug).Msg("credential seeded")
+	return nil
+}
+
+// runCreateProject creates a new project.
+func runCreateProject(cfg config.Config, logger zerolog.Logger, args []string) error {
+	fs := flag.NewFlagSet("create-project", flag.ExitOnError)
+	name := fs.String("name", "", "project display name")
+	slug := fs.String("slug", "", "project slug (used in seed-credential/create-api-key --project)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *name == "" || *slug == "" {
+		return errors.New("create-project: --name and --slug are required")
+	}
+
+	ctx := context.Background()
+	db, err := platform.NewPostgresPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+	defer db.Close()
+
+	queries := postgres.New(db)
+	project, err := queries.CreateProject(ctx, postgres.CreateProjectParams{Name: *name, Slug: *slug})
+	if err != nil {
+		return fmt.Errorf("create project: %w", err)
+	}
+
+	logger.Info().Str("id", postgres.UUIDTo(project.ID).String()).Str("slug", project.Slug).Msg("project created")
+	return nil
+}
+
+// runCreateAPIKey creates an API key for a project. The raw key is shown
+// once, in the command's own log line — it is never retrievable again.
+func runCreateAPIKey(cfg config.Config, logger zerolog.Logger, args []string) error {
+	fs := flag.NewFlagSet("create-api-key", flag.ExitOnError)
+	projectSlug := fs.String("project", "", "project slug")
+	name := fs.String("name", "", "label for this key (e.g. \"backend-prod\")")
+	scopeFlag := fs.String("scope", "send", "key scope: read or send")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *projectSlug == "" || *name == "" {
+		return errors.New("create-api-key: --project and --name are required")
+	}
+	scope, ok := apikey.ParseScope(*scopeFlag)
+	if !ok {
+		return fmt.Errorf("create-api-key: --scope must be %q or %q", apikey.ScopeRead, apikey.ScopeSend)
+	}
+
+	ctx := context.Background()
+	db, err := platform.NewPostgresPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+	defer db.Close()
+
+	queries := postgres.New(db)
+	project, err := queries.GetProjectBySlug(ctx, *projectSlug)
+	if err != nil {
+		return fmt.Errorf("resolve project %q: %w", *projectSlug, err)
+	}
+
+	raw, prefix, err := apikey.Generate()
+	if err != nil {
+		return fmt.Errorf("generate api key: %w", err)
+	}
+
+	if _, err := queries.CreateAPIKey(ctx, postgres.CreateAPIKeyParams{
+		ProjectID: project.ID,
+		Name:      *name,
+		KeyPrefix: prefix,
+		KeyHash:   apikey.Hash(raw),
+		Scope:     string(scope),
+	}); err != nil {
+		return fmt.Errorf("create api key: %w", err)
+	}
+
+	fmt.Printf("API key created for project %q (scope=%s). Save it now — it cannot be shown again:\n%s\n", *projectSlug, scope, raw)
 	return nil
 }

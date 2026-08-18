@@ -94,13 +94,13 @@ func (s *Server) handleCreateNotification(w http.ResponseWriter, r *http.Request
 		deviceIDs = append(deviceIDs, id)
 	}
 
-	project, err := s.resolveProject(r.Context())
-	if err != nil {
+	projectID, ok := projectIDFromContext(r.Context())
+	if !ok {
 		writeError(w, http.StatusInternalServerError, "failed to resolve project")
 		return
 	}
 
-	n, err := s.Dispatch.CreateNotification(r.Context(), postgres.UUIDTo(project.ID), dispatch.CreateNotificationRequest{
+	n, err := s.Dispatch.CreateNotification(r.Context(), projectID, dispatch.CreateNotificationRequest{
 		IdempotencyKey:  req.IdempotencyKey,
 		DeviceIDs:       deviceIDs,
 		ExternalUserIDs: req.IncludeExternalUserIDs,
@@ -138,15 +138,15 @@ func (s *Server) handleGetNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project, err := s.resolveProject(r.Context())
-	if err != nil {
+	projectID, ok := projectIDFromContext(r.Context())
+	if !ok {
 		writeError(w, http.StatusInternalServerError, "failed to resolve project")
 		return
 	}
 
 	n, err := s.DB.GetNotification(r.Context(), postgres.GetNotificationParams{
 		ID:        postgres.UUIDFrom(id),
-		ProjectID: project.ID,
+		ProjectID: postgres.UUIDFrom(projectID),
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -189,7 +189,16 @@ func (s *Server) handleListRecipients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recipients, err := s.DB.ListNotificationRecipients(r.Context(), postgres.UUIDFrom(id))
+	projectID, ok := projectIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "failed to resolve project")
+		return
+	}
+
+	recipients, err := s.DB.ListNotificationRecipients(r.Context(), postgres.ListNotificationRecipientsParams{
+		NotificationID: postgres.UUIDFrom(id),
+		ProjectID:      postgres.UUIDFrom(projectID),
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list recipients")
 		return

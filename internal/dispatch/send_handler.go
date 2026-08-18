@@ -33,7 +33,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		return fmt.Errorf("mark recipient sending: %w", err)
 	}
 
-	cred, err := h.DB.GetActiveProviderCredential(ctx, postgres.GetActiveProviderCredentialParams{
+	credRow, err := h.DB.GetActiveProviderCredential(ctx, postgres.GetActiveProviderCredentialParams{
 		ProjectID:    postgres.UUIDFrom(payload.ProjectID),
 		ProviderType: payload.ProviderType,
 		Environment:  environment,
@@ -44,13 +44,19 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		return fmt.Errorf("%w: no active %s credential for project: %v", asynq.SkipRetry, payload.ProviderType, err)
 	}
 
+	cred, err := h.Crypto.Open(credRow.WrappedDek, credRow.Credential)
+	if err != nil {
+		h.failRecipient(ctx, payload.RecipientID, "credential_decrypt_failed", err.Error())
+		return fmt.Errorf("%w: decrypt %s credential: %v", asynq.SkipRetry, payload.ProviderType, err)
+	}
+
 	adapter, ok := provider.Get(payload.ProviderType)
 	if !ok {
 		h.failRecipient(ctx, payload.RecipientID, "unknown_provider", "no adapter registered for "+payload.ProviderType)
 		return fmt.Errorf("%w: unknown provider %q", asynq.SkipRetry, payload.ProviderType)
 	}
 
-	result, sendErr := adapter.Send(ctx, cred.Credential, provider.SendRequest{
+	result, sendErr := adapter.Send(ctx, cred, provider.SendRequest{
 		Token: payload.Token,
 		Title: payload.Title,
 		Body:  payload.Body,
@@ -79,7 +85,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 			Err:        firstNonNilErr(sendErr, result.Err, errors.New("throttled")),
 		}
 
-	default: // provider.StatusTransientError
+	default: // provider.StatusTransientError, provider.StatusUnknown
 		transientErr := firstNonNilErr(sendErr, result.Err, errors.New("transient send error"))
 		if isLastAttempt(ctx) {
 			h.failRecipient(ctx, payload.RecipientID, "transient_error_exhausted", transientErr.Error())

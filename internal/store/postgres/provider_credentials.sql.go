@@ -12,7 +12,7 @@ import (
 )
 
 const getActiveProviderCredential = `-- name: GetActiveProviderCredential :one
-select id, project_id, provider_type, environment, credential, is_active, created_at, updated_at from provider_credentials
+select id, project_id, provider_type, environment, credential, is_active, created_at, updated_at, wrapped_dek from provider_credentials
 where project_id = $1 and provider_type = $2 and environment = $3 and is_active
 limit 1
 `
@@ -35,18 +35,20 @@ func (q *Queries) GetActiveProviderCredential(ctx context.Context, arg GetActive
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WrappedDek,
 	)
 	return i, err
 }
 
 const upsertProviderCredential = `-- name: UpsertProviderCredential :one
-insert into provider_credentials (project_id, provider_type, environment, credential)
-values ($1, $2, $3, $4)
+insert into provider_credentials (project_id, provider_type, environment, credential, wrapped_dek)
+values ($1, $2, $3, $4, $5)
 on conflict (project_id, provider_type, environment) do update set
     credential = excluded.credential,
+    wrapped_dek = excluded.wrapped_dek,
     is_active = true,
     updated_at = now()
-returning id, project_id, provider_type, environment, credential, is_active, created_at, updated_at
+returning id, project_id, provider_type, environment, credential, is_active, created_at, updated_at, wrapped_dek
 `
 
 type UpsertProviderCredentialParams struct {
@@ -54,6 +56,7 @@ type UpsertProviderCredentialParams struct {
 	ProviderType string      `json:"provider_type"`
 	Environment  string      `json:"environment"`
 	Credential   []byte      `json:"credential"`
+	WrappedDek   []byte      `json:"wrapped_dek"`
 }
 
 func (q *Queries) UpsertProviderCredential(ctx context.Context, arg UpsertProviderCredentialParams) (ProviderCredential, error) {
@@ -62,6 +65,7 @@ func (q *Queries) UpsertProviderCredential(ctx context.Context, arg UpsertProvid
 		arg.ProviderType,
 		arg.Environment,
 		arg.Credential,
+		arg.WrappedDek,
 	)
 	var i ProviderCredential
 	err := row.Scan(
@@ -73,6 +77,7 @@ func (q *Queries) UpsertProviderCredential(ctx context.Context, arg UpsertProvid
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WrappedDek,
 	)
 	return i, err
 }

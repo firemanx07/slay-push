@@ -115,8 +115,8 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project, err := s.resolveProject(r.Context())
-	if err != nil {
+	projectID, ok := projectIDFromContext(r.Context())
+	if !ok {
 		writeError(w, http.StatusInternalServerError, "failed to resolve project")
 		return
 	}
@@ -125,7 +125,7 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 	var subscriberID pgtype.UUID
 	if req.ExternalUserID != "" {
 		subscriber, err := s.DB.UpsertSubscriber(r.Context(), postgres.UpsertSubscriberParams{
-			ProjectID:  project.ID,
+			ProjectID:  postgres.UUIDFrom(projectID),
 			ExternalID: req.ExternalUserID,
 		})
 		if err != nil {
@@ -137,7 +137,7 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	device, err := s.DB.UpsertDevice(r.Context(), postgres.UpsertDeviceParams{
-		ProjectID:    project.ID,
+		ProjectID:    postgres.UUIDFrom(projectID),
 		Token:        req.Token,
 		Platform:     req.Platform,
 		ProviderType: req.Provider,

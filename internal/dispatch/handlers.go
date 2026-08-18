@@ -11,6 +11,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 
+	"github.com/firemanx07/slay-push/internal/crypto"
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 	"github.com/firemanx07/slay-push/internal/targeting"
 )
@@ -19,11 +20,12 @@ type Handlers struct {
 	DB        *postgres.Queries
 	Queue     *asynq.Client
 	Targeting *targeting.Registry
+	Crypto    crypto.MasterKey
 	Logger    zerolog.Logger
 }
 
-func NewHandlers(db *postgres.Queries, q *asynq.Client, targetingRegistry *targeting.Registry, logger zerolog.Logger) *Handlers {
-	return &Handlers{DB: db, Queue: q, Targeting: targetingRegistry, Logger: logger}
+func NewHandlers(db *postgres.Queries, q *asynq.Client, targetingRegistry *targeting.Registry, masterKey crypto.MasterKey, logger zerolog.Logger) *Handlers {
+	return &Handlers{DB: db, Queue: q, Targeting: targetingRegistry, Crypto: masterKey, Logger: logger}
 }
 
 // terminalRecipientStatuses are statuses HandleSend must never act on again.

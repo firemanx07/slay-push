@@ -6,6 +6,30 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Phase 3: multi-tenancy and machine auth. Envelope-encrypted
+  `provider_credentials` (per-credential AES-256-GCM DEK wrapped by
+  `APP_MASTER_KEY`), API keys (`sp_live_` prefix, `read`/`send` scopes,
+  revocation, Redis GCRA rate limiting), and auth middleware that resolves
+  the project from the API key — replacing the hardcoded "default" project
+  lookup. `create-project` and `create-api-key` CLI subcommands. `app`,
+  `worker`, and `seed-credential` now fail fast if `APP_MASTER_KEY` is
+  missing or malformed.
+
+### Fixed
+- `provider.Status`'s zero value was `StatusSent`, so an adapter's early
+  `return provider.SendResult{}, err` (e.g. on a credential/setup failure)
+  was silently recorded as a successful send. `StatusUnknown` is now the
+  zero value.
+- `ListNotificationRecipients` didn't scope by project, so a valid API key
+  for one project could list another project's notification recipients if
+  it knew the notification id.
+- `provider_credentials.credential` was `jsonb`, which can't hold the
+  arbitrary binary ciphertext envelope encryption produces; changed to
+  `bytea`.
+- Rate-limit `Retry-After` truncated sub-second delays to `0`, which reads
+  as "retry immediately" right after being rejected; now rounds up to at
+  least 1 second.
+
 - Phase 2: hand-rolled Expo and Huawei HMS adapters and a `sideshow/apns2`-based
   APNs adapter, all self-registering into the provider registry alongside FCM.
   The subscriber/device split (`subscribers` table, `devices.subscriber_id`)

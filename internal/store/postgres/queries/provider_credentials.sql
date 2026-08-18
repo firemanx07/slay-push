@@ -1,8 +1,9 @@
 -- name: UpsertProviderCredential :one
-insert into provider_credentials (project_id, provider_type, environment, credential)
-values ($1, $2, $3, $4)
+insert into provider_credentials (project_id, provider_type, environment, credential, wrapped_dek)
+values ($1, $2, $3, $4, $5)
 on conflict (project_id, provider_type, environment) do update set
     credential = excluded.credential,
+    wrapped_dek = excluded.wrapped_dek,
     is_active = true,
     updated_at = now()
 returning *;

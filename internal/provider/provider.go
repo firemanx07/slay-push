@@ -15,10 +15,11 @@ import (
 type Status int
 
 const (
-	StatusSent           Status = iota
-	StatusInvalidToken          // terminal, no retry; caller marks the device invalid
-	StatusTransientError        // retryable with standard backoff
-	StatusThrottled             // retryable, honors RetryAfter when provided
+	StatusUnknown Status = iota // zero value
+	StatusSent
+	StatusInvalidToken   // terminal, no retry; caller marks the device invalid
+	StatusTransientError // retryable with standard backoff
+	StatusThrottled      // retryable, honors RetryAfter when provided
 )
 
 type SendRequest struct {

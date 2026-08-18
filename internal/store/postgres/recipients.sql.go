@@ -127,11 +127,19 @@ func (q *Queries) InsertNotificationRecipient(ctx context.Context, arg InsertNot
 }
 
 const listNotificationRecipients = `-- name: ListNotificationRecipients :many
-select id, notification_id, device_id, provider_type, status, provider_message_id, error_code, error_message, attempt_count, sent_at, failed_at, created_at from notification_recipients where notification_id = $1 order by created_at
+select nr.id, nr.notification_id, nr.device_id, nr.provider_type, nr.status, nr.provider_message_id, nr.error_code, nr.error_message, nr.attempt_count, nr.sent_at, nr.failed_at, nr.created_at from notification_recipients nr
+join notifications n on n.id = nr.notification_id
+where nr.notification_id = $1 and n.project_id = $2
+order by nr.created_at
 `
 
-func (q *Queries) ListNotificationRecipients(ctx context.Context, notificationID pgtype.UUID) ([]NotificationRecipient, error) {
-	rows, err := q.db.Query(ctx, listNotificationRecipients, notificationID)
+type ListNotificationRecipientsParams struct {
+	NotificationID pgtype.UUID `json:"notification_id"`
+	ProjectID      pgtype.UUID `json:"project_id"`
+}
+
+func (q *Queries) ListNotificationRecipients(ctx context.Context, arg ListNotificationRecipientsParams) ([]NotificationRecipient, error) {
+	rows, err := q.db.Query(ctx, listNotificationRecipients, arg.NotificationID, arg.ProjectID)
 	if err != nil {
 		return nil, err
 	}
