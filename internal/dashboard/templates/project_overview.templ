@@ -1,0 +1,14 @@
+package templates
+
+templ ProjectOverview(project Project) {
+	@Layout(project.Name) {
+		<main>
+			<p><a href="/projects">&larr; Projects</a></p>
+			<h1>{ project.Name }</h1>
+			@ProjectNav(project.ID)
+			<h2>Overview</h2>
+			<p>Slug: { project.Slug }</p>
+			<p>Status: { project.Status }</p>
+		</main>
+	}
+}

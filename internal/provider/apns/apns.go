@@ -103,6 +103,13 @@ func (a *adapter) clientFor(credential json.RawMessage) (*cachedClient, error) {
 	return cc, nil
 }
 
+// TestCredential implements provider.CredentialTester by parsing the key
+// material and building a client from it, without sending a push.
+func (a *adapter) TestCredential(_ context.Context, credential json.RawMessage) error {
+	_, err := a.clientFor(credential)
+	return err
+}
+
 func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req provider.SendRequest) (provider.SendResult, error) {
 	cc, err := a.clientFor(credential)
 	if err != nil {

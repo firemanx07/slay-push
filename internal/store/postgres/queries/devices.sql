@@ -16,3 +16,16 @@ select * from devices where project_id = $1 and id = any(sqlc.arg(ids)::uuid[]);
 
 -- name: MarkDeviceStatus :exec
 update devices set status = $2, updated_at = now() where id = $1;
+
+-- name: ListDevicesByProject :many
+-- external_id/status filters are skipped when passed as an empty string.
+select d.id, d.project_id, d.token, d.platform, d.provider_type, d.status,
+    d.metadata, d.created_at, d.updated_at, d.subscriber_id,
+    coalesce(s.external_id, '') as external_id
+from devices d
+left join subscribers s on s.id = d.subscriber_id
+where d.project_id = $1
+  and (sqlc.arg(external_id)::text = '' or s.external_id = sqlc.arg(external_id)::text)
+  and (sqlc.arg(status)::text = '' or d.status = sqlc.arg(status)::text)
+order by d.created_at desc
+limit sqlc.arg(page_limit)::int offset sqlc.arg(page_offset)::int;

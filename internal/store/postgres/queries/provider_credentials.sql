@@ -12,3 +12,11 @@ returning *;
 select * from provider_credentials
 where project_id = $1 and provider_type = $2 and environment = $3 and is_active
 limit 1;
+
+-- name: ListProviderCredentialsByProject :many
+-- Never selects credential/wrapped_dek: this feeds the dashboard, which
+-- must never see ciphertext or key material.
+select id, project_id, provider_type, environment, is_active, created_at, updated_at
+from provider_credentials
+where project_id = $1
+order by provider_type;

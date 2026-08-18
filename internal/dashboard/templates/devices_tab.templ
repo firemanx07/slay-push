@@ -1,0 +1,32 @@
+package templates
+
+templ DevicesTab(project Project, devices []Device, externalID string, status string) {
+	@Layout(project.Name + " · Devices") {
+		<main>
+			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+			@ProjectNav(project.ID)
+			<h2>Devices</h2>
+			<form method="get" action={ templ.URL("/projects/" + project.ID + "/devices") }>
+				<input type="text" name="external_id" placeholder="external_user_id" value={ externalID }/>
+				<select name="status">
+					<option value="" selected?={ status == "" }>any status</option>
+					<option value="active" selected?={ status == "active" }>active</option>
+					<option value="stale" selected?={ status == "stale" }>stale</option>
+					<option value="invalid" selected?={ status == "invalid" }>invalid</option>
+				</select>
+				<button type="submit">Filter</button>
+			</form>
+			<table>
+				<tr><th>Platform</th><th>Provider</th><th>Status</th><th>Created</th></tr>
+				for _, d := range devices {
+					<tr>
+						<td>{ d.Platform }</td>
+						<td>{ d.ProviderType }</td>
+						<td>{ d.Status }</td>
+						<td>{ d.CreatedAt.Format("2006-01-02 15:04") }</td>
+					</tr>
+				}
+			</table>
+		</main>
+	}
+}

@@ -1,0 +1,24 @@
+package templates
+
+import "strconv"
+
+templ NotificationsTab(project Project, notifications []Notification) {
+	@Layout(project.Name + " · Notifications") {
+		<main>
+			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+			@ProjectNav(project.ID)
+			<h2>Send History</h2>
+			<table>
+				<tr><th>Status</th><th>Recipients</th><th>Created</th><th></th></tr>
+				for _, n := range notifications {
+					<tr>
+						<td>{ n.Status }</td>
+						<td>{ strconv.Itoa(int(n.TotalRecipients)) }</td>
+						<td>{ n.CreatedAt.Format("2006-01-02 15:04") }</td>
+						<td><a href={ templ.URL("/notifications/" + n.ID) }>Detail</a></td>
+					</tr>
+				}
+			</table>
+		</main>
+	}
+}

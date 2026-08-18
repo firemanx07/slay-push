@@ -51,6 +51,80 @@ func (q *Queries) GetDevicesByIDs(ctx context.Context, arg GetDevicesByIDsParams
 	return items, nil
 }
 
+const listDevicesByProject = `-- name: ListDevicesByProject :many
+select d.id, d.project_id, d.token, d.platform, d.provider_type, d.status,
+    d.metadata, d.created_at, d.updated_at, d.subscriber_id,
+    coalesce(s.external_id, '') as external_id
+from devices d
+left join subscribers s on s.id = d.subscriber_id
+where d.project_id = $1
+  and ($2::text = '' or s.external_id = $2::text)
+  and ($3::text = '' or d.status = $3::text)
+order by d.created_at desc
+limit $5::int offset $4::int
+`
+
+type ListDevicesByProjectParams struct {
+	ProjectID  pgtype.UUID `json:"project_id"`
+	ExternalID string      `json:"external_id"`
+	Status     string      `json:"status"`
+	PageOffset int32       `json:"page_offset"`
+	PageLimit  int32       `json:"page_limit"`
+}
+
+type ListDevicesByProjectRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	ProjectID    pgtype.UUID        `json:"project_id"`
+	Token        string             `json:"token"`
+	Platform     string             `json:"platform"`
+	ProviderType string             `json:"provider_type"`
+	Status       string             `json:"status"`
+	Metadata     []byte             `json:"metadata"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	SubscriberID pgtype.UUID        `json:"subscriber_id"`
+	ExternalID   string             `json:"external_id"`
+}
+
+// external_id/status filters are skipped when passed as an empty string.
+func (q *Queries) ListDevicesByProject(ctx context.Context, arg ListDevicesByProjectParams) ([]ListDevicesByProjectRow, error) {
+	rows, err := q.db.Query(ctx, listDevicesByProject,
+		arg.ProjectID,
+		arg.ExternalID,
+		arg.Status,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDevicesByProjectRow
+	for rows.Next() {
+		var i ListDevicesByProjectRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.Token,
+			&i.Platform,
+			&i.ProviderType,
+			&i.Status,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SubscriberID,
+			&i.ExternalID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markDeviceStatus = `-- name: MarkDeviceStatus :exec
 update devices set status = $2, updated_at = now() where id = $1
 `

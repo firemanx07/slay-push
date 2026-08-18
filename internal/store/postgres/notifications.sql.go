@@ -94,6 +94,31 @@ func (q *Queries) GetNotification(ctx context.Context, arg GetNotificationParams
 	return i, err
 }
 
+const getNotificationByID = `-- name: GetNotificationByID :one
+select id, project_id, idempotency_key, title, body, data, target_spec, status, total_recipients, created_at, completed_at from notifications where id = $1
+`
+
+// Unscoped by project: only for the dashboard, which is visible to every
+// project by design (see internal/dashboard's visibleProjects).
+func (q *Queries) GetNotificationByID(ctx context.Context, id pgtype.UUID) (Notification, error) {
+	row := q.db.QueryRow(ctx, getNotificationByID, id)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.IdempotencyKey,
+		&i.Title,
+		&i.Body,
+		&i.Data,
+		&i.TargetSpec,
+		&i.Status,
+		&i.TotalRecipients,
+		&i.CreatedAt,
+		&i.CompletedAt,
+	)
+	return i, err
+}
+
 const getNotificationByIdempotencyKey = `-- name: GetNotificationByIdempotencyKey :one
 select id, project_id, idempotency_key, title, body, data, target_spec, status, total_recipients, created_at, completed_at from notifications where project_id = $1 and idempotency_key = $2
 `
@@ -120,6 +145,51 @@ func (q *Queries) GetNotificationByIdempotencyKey(ctx context.Context, arg GetNo
 		&i.CompletedAt,
 	)
 	return i, err
+}
+
+const listNotificationsByProject = `-- name: ListNotificationsByProject :many
+select id, project_id, idempotency_key, title, body, data, target_spec, status, total_recipients, created_at, completed_at from notifications
+where project_id = $1
+order by created_at desc
+limit $3::int offset $2::int
+`
+
+type ListNotificationsByProjectParams struct {
+	ProjectID  pgtype.UUID `json:"project_id"`
+	PageOffset int32       `json:"page_offset"`
+	PageLimit  int32       `json:"page_limit"`
+}
+
+func (q *Queries) ListNotificationsByProject(ctx context.Context, arg ListNotificationsByProjectParams) ([]Notification, error) {
+	rows, err := q.db.Query(ctx, listNotificationsByProject, arg.ProjectID, arg.PageOffset, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.IdempotencyKey,
+			&i.Title,
+			&i.Body,
+			&i.Data,
+			&i.TargetSpec,
+			&i.Status,
+			&i.TotalRecipients,
+			&i.CreatedAt,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setNotificationStatus = `-- name: SetNotificationStatus :exec
