@@ -1,0 +1,52 @@
+// Package config loads process configuration from environment variables.
+//
+// Per the project plan, most operator-facing settings (auth mode, OIDC
+// config, rate-limit overrides, ...) live in Postgres and are edited from
+// the dashboard after bootstrap. What lives here is only what's needed
+// before the database is even reachable: how to reach Postgres/Redis, how
+// to log, and which port to bind.
+package config
+
+import (
+	"fmt"
+	"os"
+)
+
+type Config struct {
+	HTTPAddr    string
+	DatabaseURL string
+	RedisURL    string
+	LogLevel    string
+	LogFormat   string // "json" (default, prod) or "seq" (dev-only)
+	SeqURL      string // only consulted when LogFormat == "seq"
+	MasterKey   string // APP_MASTER_KEY, AES-256-GCM key for secrets at rest (base64, 32 bytes decoded)
+}
+
+func Load() Config {
+	return Config{
+		HTTPAddr:    getEnv("APP_HTTP_ADDR", ":8080"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://pushdispatch:pushdispatch@localhost:5432/pushdispatch?sslmode=disable"),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379/0"),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		LogFormat:   getEnv("LOG_FORMAT", "json"),
+		SeqURL:      getEnv("SEQ_URL", ""),
+		MasterKey:   os.Getenv("APP_MASTER_KEY"),
+	}
+}
+
+func getEnv(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		return v
+	}
+	return fallback
+}
+
+func (c Config) Validate() error {
+	if c.LogFormat != "json" && c.LogFormat != "seq" {
+		return fmt.Errorf("LOG_FORMAT must be %q or %q, got %q", "json", "seq", c.LogFormat)
+	}
+	if c.LogFormat == "seq" && c.SeqURL == "" {
+		return fmt.Errorf("SEQ_URL is required when LOG_FORMAT=seq")
+	}
+	return nil
+}

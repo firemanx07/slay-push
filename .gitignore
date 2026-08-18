@@ -1,0 +1,7 @@
+/bin/
+*.exe
+.env
+*.log
+.DS_Store
+/.devrun/
+*.rdb

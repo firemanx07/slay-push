@@ -1,0 +1,35 @@
+# Dev-only overlay: adds Seq for structured-log viewing and points the app
+# containers at it. Never required in production — see the plan's rationale
+# in the Docker Compose section: prod logging is stdout JSON only, so any
+# self-hoster can pipe it into whatever log stack they already run.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "8081:80" # Seq UI
+      - "5341:5341" # CLEF ingestion
+    volumes:
+      - seqdata:/data
+
+  app:
+    environment:
+      LOG_FORMAT: seq
+      SEQ_URL: http://seq:5341
+    depends_on:
+      seq:
+        condition: service_started
+
+  worker:
+    environment:
+      LOG_FORMAT: seq
+      SEQ_URL: http://seq:5341
+    depends_on:
+      seq:
+        condition: service_started
+
+volumes:
+  seqdata:

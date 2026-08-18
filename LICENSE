@@ -1,0 +1,22 @@
+DRAFT LICENSE — PENDING LEGAL REVIEW, NOT YET FINAL
+=====================================================
+
+This file is a placeholder describing the intended licensing model for this
+project. It is a product/technical description of intent, not legal text,
+and must not be treated as a binding license until reviewed and finalized
+by a lawyer.
+
+Intended model: Business Source License 1.1 (BSL), source-available.
+
+Summary of intent:
+  - Anyone may view, self-host, modify, and use this software for internal
+    purposes, free of charge, including commercial internal use.
+  - The one restriction: no third party may offer this software (or a
+    derivative of it) to others as a competing hosted/managed service
+    without a separate commercial agreement with the licensor.
+  - Change Date: 4 years from each version's release date.
+  - Change License: on the Change Date, that version converts to
+    Apache License, Version 2.0.
+
+Until this file is replaced with finalized, lawyer-reviewed license text,
+no license is granted and all rights are reserved.
