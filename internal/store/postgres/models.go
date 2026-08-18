@@ -83,6 +83,16 @@ type ProviderCredential struct {
 	WrappedDek   []byte             `json:"wrapped_dek"`
 }
 
+type Session struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	TokenHash  string             `json:"token_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
+}
+
 type Subscriber struct {
 	ID         pgtype.UUID        `json:"id"`
 	ProjectID  pgtype.UUID        `json:"project_id"`
@@ -90,4 +100,12 @@ type Subscriber struct {
 	Status     string             `json:"status"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	LastSeenAt pgtype.Timestamptz `json:"last_seen_at"`
+}
+
+type User struct {
+	ID           pgtype.UUID        `json:"id"`
+	Email        string             `json:"email"`
+	PasswordHash string             `json:"password_hash"`
+	Role         string             `json:"role"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }

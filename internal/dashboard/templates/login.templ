@@ -1,0 +1,23 @@
+package templates
+
+templ Login(errorMessage string) {
+	@Layout("Log in") {
+		<main class="auth-page">
+			<h1>slay-push</h1>
+			if errorMessage != "" {
+				<p class="error">{ errorMessage }</p>
+			}
+			<form method="post" action="/login">
+				<label>
+					Email
+					<input type="email" name="email" required autofocus/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" required/>
+				</label>
+				<button type="submit">Log in</button>
+			</form>
+		</main>
+	}
+}

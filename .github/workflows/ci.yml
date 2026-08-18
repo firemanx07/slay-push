@@ -21,6 +21,11 @@ jobs:
       - name: gofmt check
         run: |
           diff <(gofmt -l .) <(echo -n "")
+      - name: templ generate check
+        run: |
+          go install github.com/a-h/templ/cmd/templ@latest
+          templ generate
+          git diff --exit-code -- '*_templ.go'
       - run: go test ./...
 
   lint:

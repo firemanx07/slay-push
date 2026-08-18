@@ -6,6 +6,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Phase 4a: dashboard local-auth backend. `users`/`sessions` tables, argon2id password hashing
+  (`internal/auth`), and a single opaque session token (crypto/rand + sha256, same shape as
+  `internal/apikey`'s API keys) looked up per request — no JWT, since a dashboard's traffic never
+  approaches the volume where a per-request DB lookup matters. `internal/dashboard` (chi router +
+  `a-h/templ` templates) serves `/setup` (first-run admin creation, unreachable once an admin
+  exists), `/login`, `/logout`, and an authenticated `/`. `serve-api`/`serve-dashboard`/`serve-all`
+  now actually mount different routers instead of being aliases for the same one. `bootstrap` CLI
+  subcommand implemented (`BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD`, idempotent). Dashboard
+  page work (project/provider/device/notification browsing) is a separate follow-up PR.
 - Pre-Phase-4 best-practices audit: `.golangci.yml` (moderate curated set — errcheck, govet,
   staticcheck, gosec, revive, errorlint, contextcheck, and more), `govulncheck` run locally and
   wired into CI as its own job, doc comments on every exported identifier, an `api/openapi.yaml`

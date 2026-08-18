@@ -1,0 +1,13 @@
+package templates
+
+templ Home(userEmail string) {
+	@Layout("Dashboard") {
+		<main>
+			<h1>slay-push dashboard</h1>
+			<p>Logged in as { userEmail }.</p>
+			<form method="post" action="/logout">
+				<button type="submit">Log out</button>
+			</form>
+		</main>
+	}
+}

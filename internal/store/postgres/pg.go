@@ -44,6 +44,11 @@ func TimeToPtr(t pgtype.Timestamptz) *time.Time {
 	return &tt
 }
 
+// TimeFrom converts a time.Time to its pgtype.Timestamptz equivalent.
+func TimeFrom(t time.Time) pgtype.Timestamptz {
+	return pgtype.Timestamptz{Time: t, Valid: true}
+}
+
 // TextFrom converts s to *string, returning nil for an empty string.
 func TextFrom(s string) *string {
 	if s == "" {

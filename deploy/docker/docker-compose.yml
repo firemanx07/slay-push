@@ -12,6 +12,7 @@ x-app-image: &app-image
     APP_MASTER_KEY: ${APP_MASTER_KEY:-}
     LOG_LEVEL: ${LOG_LEVEL:-info}
     LOG_FORMAT: ${LOG_FORMAT:-json}
+    APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-true}
   depends_on:
     migrate:
       condition: service_completed_successfully

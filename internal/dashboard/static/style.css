@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 480px;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.auth-page h1 {
+  margin-bottom: 0.5rem;
+}
+
+form label {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+form input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0.5rem 1rem;
+}
+
+.error {
+  color: #c0392b;
+}

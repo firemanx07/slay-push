@@ -24,8 +24,10 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/firemanx07/slay-push/internal/apikey"
+	"github.com/firemanx07/slay-push/internal/auth"
 	"github.com/firemanx07/slay-push/internal/config"
 	"github.com/firemanx07/slay-push/internal/crypto"
+	"github.com/firemanx07/slay-push/internal/dashboard"
 	"github.com/firemanx07/slay-push/internal/dispatch"
 	"github.com/firemanx07/slay-push/internal/platform"
 	_ "github.com/firemanx07/slay-push/internal/provider/apns" // self-registers "apns" into the provider registry
@@ -60,7 +62,7 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "serve-all", "serve-api", "serve-dashboard":
-		err = runServe(cfg, logger)
+		err = runServe(cfg, logger, os.Args[1])
 	case "worker":
 		err = runWorker(cfg, logger)
 	case "migrate":
@@ -74,7 +76,7 @@ func main() {
 	case "create-api-key":
 		err = runCreateAPIKey(cfg, logger, os.Args[2:])
 	case "bootstrap":
-		err = errors.New("bootstrap: not yet implemented")
+		err = runBootstrap(cfg, logger)
 	case "rotate-key":
 		err = errors.New("rotate-key: not yet implemented")
 	default:
@@ -119,10 +121,12 @@ func runHealthcheckProbe(cfg config.Config) int {
 	return 0
 }
 
-// runServe starts the HTTP server: the public dispatch API (register
-// device, create notification, get status) plus /healthz. serve-api/
-// serve-dashboard are aliases for serve-all.
-func runServe(cfg config.Config, logger zerolog.Logger) error {
+// runServe starts the HTTP server: /healthz, plus the public dispatch API
+// (register device, create notification, get status) for serve-api/
+// serve-all and the operator dashboard for serve-dashboard/serve-all,
+// mounted on the same *http.Server so a single serve-all deployment shares
+// one listener and one graceful-shutdown path.
+func runServe(cfg config.Config, logger zerolog.Logger, mode string) error {
 	masterKey, err := crypto.LoadMasterKey(cfg.MasterKey)
 	if err != nil {
 		return fmt.Errorf("load master key: %w", err)
@@ -144,27 +148,33 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 
 	queries := postgres.New(db)
 
-	asynqClient, err := queue.NewClient(cfg.RedisURL)
-	if err != nil {
-		return fmt.Errorf("connect asynq client: %w", err)
-	}
-	defer func() { _ = asynqClient.Close() }()
-
-	targetingRegistry := targeting.NewRegistry(queries)
-	dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
-	rateLimiter := apikey.NewRateLimiter(rdb, cfg.DefaultRateLimitRPS, logger)
-
-	apiServer := &apihttp.Server{DB: queries, Dispatch: dispatchHandlers, RateLimiter: rateLimiter, Logger: logger}
-
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", platform.HealthHandler(db, rdb))
-	mux.Handle("/", apihttp.NewRouter(apiServer))
+
+	if mode == "serve-api" || mode == "serve-all" {
+		asynqClient, err := queue.NewClient(cfg.RedisURL)
+		if err != nil {
+			return fmt.Errorf("connect asynq client: %w", err)
+		}
+		defer func() { _ = asynqClient.Close() }()
+
+		targetingRegistry := targeting.NewRegistry(queries)
+		dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
+		rateLimiter := apikey.NewRateLimiter(rdb, cfg.DefaultRateLimitRPS, logger)
+		apiServer := &apihttp.Server{DB: queries, Dispatch: dispatchHandlers, RateLimiter: rateLimiter, Logger: logger}
+		mux.Handle("/api/", apihttp.NewRouter(apiServer))
+	}
+
+	if mode == "serve-dashboard" || mode == "serve-all" {
+		dashboardServer := &dashboard.Server{DB: queries, Logger: logger, CookieSecure: cfg.CookieSecure}
+		mux.Handle("/", dashboard.NewRouter(dashboardServer))
+	}
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info().Str("addr", cfg.HTTPAddr).Msg("http server listening")
+		logger.Info().Str("addr", cfg.HTTPAddr).Str("mode", mode).Msg("http server listening")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -404,5 +414,47 @@ func runCreateAPIKey(cfg config.Config, logger zerolog.Logger, args []string) er
 
 	logger.Info().Str("project", *projectSlug).Str("scope", string(scope)).Msg("api key created")
 	fmt.Printf("API key created for project %q (scope=%s). Save it now — it cannot be shown again:\n%s\n", *projectSlug, scope, raw)
+	return nil
+}
+
+// runBootstrap idempotently creates the first dashboard admin account from
+// BOOTSTRAP_ADMIN_EMAIL/BOOTSTRAP_ADMIN_PASSWORD — a scripted alternative to
+// the dashboard's /setup wizard, for CI/E2E setups. A no-op if an admin
+// account already exists.
+func runBootstrap(cfg config.Config, logger zerolog.Logger) error {
+	email := os.Getenv("BOOTSTRAP_ADMIN_EMAIL")
+	password := os.Getenv("BOOTSTRAP_ADMIN_PASSWORD")
+	if email == "" || password == "" {
+		return errors.New("bootstrap: BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD are required")
+	}
+
+	ctx := context.Background()
+	db, err := platform.NewPostgresPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+	defer db.Close()
+
+	queries := postgres.New(db)
+
+	count, err := queries.CountUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("count users: %w", err)
+	}
+	if count > 0 {
+		logger.Info().Msg("bootstrap: an admin account already exists, skipping")
+		return nil
+	}
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	if _, err := queries.CreateUser(ctx, postgres.CreateUserParams{Email: email, PasswordHash: hash}); err != nil {
+		return fmt.Errorf("create admin user: %w", err)
+	}
+
+	logger.Info().Str("email", email).Msg("bootstrap: admin account created")
 	return nil
 }
