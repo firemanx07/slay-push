@@ -6,6 +6,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Phase 2: hand-rolled Expo and Huawei HMS adapters and a `sideshow/apns2`-based
+  APNs adapter, all self-registering into the provider registry alongside FCM.
+  The subscriber/device split (`subscribers` table, `devices.subscriber_id`)
+  and `targeting.ByGroup` add group push — send to every active device under
+  an external id. The notification API now speaks OneSignal-style field
+  names (`include_player_ids`, `include_external_user_ids`), with
+  `included_segments`/`filters` accepted on the wire shape but rejected for
+  now (segmentation is deliberately out of scope). Device registration
+  accepts an optional `external_user_id` to link a device to a subscriber.
 - Phase 1: core schema (`projects`, `devices`, `notifications`,
   `notification_recipients`, `provider_credentials`, seeded default
   project), the `provider.Adapter` self-registering factory interface, a

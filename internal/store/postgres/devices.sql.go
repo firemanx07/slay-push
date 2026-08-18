@@ -12,7 +12,7 @@ import (
 )
 
 const getDevicesByIDs = `-- name: GetDevicesByIDs :many
-select id, project_id, token, platform, provider_type, status, metadata, created_at, updated_at from devices where project_id = $1 and id = any($2::uuid[])
+select id, project_id, token, platform, provider_type, status, metadata, created_at, updated_at, subscriber_id from devices where project_id = $1 and id = any($2::uuid[])
 `
 
 type GetDevicesByIDsParams struct {
@@ -39,6 +39,7 @@ func (q *Queries) GetDevicesByIDs(ctx context.Context, arg GetDevicesByIDsParams
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SubscriberID,
 		); err != nil {
 			return nil, err
 		}
@@ -65,15 +66,16 @@ func (q *Queries) MarkDeviceStatus(ctx context.Context, arg MarkDeviceStatusPara
 }
 
 const upsertDevice = `-- name: UpsertDevice :one
-insert into devices (project_id, token, platform, provider_type, metadata)
-values ($1, $2, $3, $4, $5)
+insert into devices (project_id, token, platform, provider_type, metadata, subscriber_id)
+values ($1, $2, $3, $4, $5, $6)
 on conflict (project_id, token) do update set
     platform = excluded.platform,
     provider_type = excluded.provider_type,
     metadata = excluded.metadata,
+    subscriber_id = coalesce(excluded.subscriber_id, devices.subscriber_id),
     status = 'active',
     updated_at = now()
-returning id, project_id, token, platform, provider_type, status, metadata, created_at, updated_at
+returning id, project_id, token, platform, provider_type, status, metadata, created_at, updated_at, subscriber_id
 `
 
 type UpsertDeviceParams struct {
@@ -82,8 +84,13 @@ type UpsertDeviceParams struct {
 	Platform     string      `json:"platform"`
 	ProviderType string      `json:"provider_type"`
 	Metadata     []byte      `json:"metadata"`
+	SubscriberID pgtype.UUID `json:"subscriber_id"`
 }
 
+// subscriber_id is only ever updated when a non-null value is supplied
+// (coalesce keeps the existing link) — re-registering the same token with a
+// new external_user_id reassigns it to that subscriber, but omitting
+// external_user_id on a later registration doesn't silently unlink it.
 func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error) {
 	row := q.db.QueryRow(ctx, upsertDevice,
 		arg.ProjectID,
@@ -91,6 +98,7 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Dev
 		arg.Platform,
 		arg.ProviderType,
 		arg.Metadata,
+		arg.SubscriberID,
 	)
 	var i Device
 	err := row.Scan(
@@ -103,6 +111,7 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Dev
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SubscriberID,
 	)
 	return i, err
 }

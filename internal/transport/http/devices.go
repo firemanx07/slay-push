@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/firemanx07/slay-push/internal/provider"
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
@@ -69,11 +71,14 @@ func (d *deviceInfoRequest) validate() error {
 	return nil
 }
 
+const maxExternalUserIDLength = 256
+
 type registerDeviceRequest struct {
-	Token    string             `json:"token"`
-	Provider string             `json:"provider"` // which push network — fcm/apns/hms/expo, required, never inferred
-	Platform string             `json:"platform"` // what kind of device — ios/android/web, required
-	Device   *deviceInfoRequest `json:"device,omitempty"`
+	Token          string             `json:"token"`
+	Provider       string             `json:"provider"`         // which push network — fcm/apns/hms/expo, required, never inferred
+	Platform       string             `json:"platform"`         // what kind of device — ios/android/web, required
+	ExternalUserID string             `json:"external_user_id"` // optional — groups this device under a subscriber for group push
+	Device         *deviceInfoRequest `json:"device,omitempty"`
 }
 
 type registerDeviceResponse struct {
@@ -101,6 +106,10 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "platform must be one of: ios, android, web")
 		return
 	}
+	if len(req.ExternalUserID) > maxExternalUserIDLength {
+		writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("external_user_id must be at most %d characters", maxExternalUserIDLength))
+		return
+	}
 	if err := req.Device.validate(); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
@@ -118,12 +127,30 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// subscriber_id stays NULL (its zero value) when no external_user_id is
+	// given — UpsertDevice's on-conflict path coalesces it, so a device
+	// re-registering without external_user_id never loses an existing link.
+	var subscriberID pgtype.UUID
+	if req.ExternalUserID != "" {
+		subscriber, err := s.DB.UpsertSubscriber(r.Context(), postgres.UpsertSubscriberParams{
+			ProjectID:  project.ID,
+			ExternalID: req.ExternalUserID,
+		})
+		if err != nil {
+			s.Logger.Error().Err(err).Msg("upsert subscriber failed")
+			writeError(w, http.StatusInternalServerError, "failed to register device")
+			return
+		}
+		subscriberID = subscriber.ID
+	}
+
 	device, err := s.DB.UpsertDevice(r.Context(), postgres.UpsertDeviceParams{
 		ProjectID:    project.ID,
 		Token:        req.Token,
 		Platform:     req.Platform,
 		ProviderType: req.Provider,
 		Metadata:     metadataJSON,
+		SubscriberID: subscriberID,
 	})
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("upsert device failed")

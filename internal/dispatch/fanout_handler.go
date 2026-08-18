@@ -33,7 +33,10 @@ func (h *Handlers) HandleFanout(ctx context.Context, payload queue.FanoutPayload
 		return fmt.Errorf("invalid target_spec (not retryable): %w", err)
 	}
 
-	deviceIDs, err := h.Targeting.Resolve(ctx, payload.ProjectID, targeting.Spec{DeviceIDs: spec.DeviceIDs})
+	deviceIDs, err := h.Targeting.Resolve(ctx, payload.ProjectID, targeting.Spec{
+		DeviceIDs:       spec.DeviceIDs,
+		ExternalUserIDs: spec.ExternalUserIDs,
+	})
 	if err != nil {
 		_ = h.DB.SetNotificationStatus(ctx, postgres.SetNotificationStatusParams{ID: n.ID, Status: "failed"})
 		return fmt.Errorf("resolve targets (not retryable): %w", err)

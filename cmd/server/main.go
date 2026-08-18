@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -26,7 +27,10 @@ import (
 	"github.com/firemanx07/slay-push/internal/config"
 	"github.com/firemanx07/slay-push/internal/dispatch"
 	"github.com/firemanx07/slay-push/internal/platform"
-	_ "github.com/firemanx07/slay-push/internal/provider/fcm" // self-registers "fcm" into the provider registry
+	_ "github.com/firemanx07/slay-push/internal/provider/apns" // self-registers "apns" into the provider registry
+	_ "github.com/firemanx07/slay-push/internal/provider/expo" // self-registers "expo" into the provider registry
+	_ "github.com/firemanx07/slay-push/internal/provider/fcm"  // self-registers "fcm" into the provider registry
+	_ "github.com/firemanx07/slay-push/internal/provider/hms"  // self-registers "hms" into the provider registry
 	"github.com/firemanx07/slay-push/internal/queue"
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 	"github.com/firemanx07/slay-push/internal/targeting"
@@ -34,6 +38,11 @@ import (
 )
 
 const shutdownTimeout = 10 * time.Second
+
+// supportedProviders drives both the worker's per-provider queue/handler
+// registration and the seed-credential CLI's flag description — one list,
+// not repeated at each call site.
+var supportedProviders = []string{"expo", "fcm", "apns", "hms"}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -164,9 +173,10 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 }
 
 // runWorker hosts the asynq queue consumer: fanout (target resolution) plus
-// one queue per provider (send:fcm today; send:expo/apns/hms join in
-// Phase 2). asynq.Server.Run already handles SIGINT/SIGTERM with a graceful
-// shutdown internally, so no manual signal plumbing is needed here.
+// one queue per provider (send:fcm/expo/apns/hms) — a slow/down provider
+// never starves the others. asynq.Server.Run already handles SIGINT/SIGTERM
+// with a graceful shutdown internally, so no manual signal plumbing is
+// needed here.
 func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	ctx := context.Background()
 
@@ -192,20 +202,21 @@ func runWorker(cfg config.Config, logger zerolog.Logger) error {
 		return fmt.Errorf("parse redis url: %w", err)
 	}
 
+	queues := map[string]int{queue.QueueFanout: 5}
+	mux := asynq.NewServeMux()
+	mux.HandleFunc(queue.TypeFanout, handlers.AsynqFanoutHandler)
+	for _, providerType := range supportedProviders {
+		queues[queue.SendTypeFor(providerType)] = 10
+		mux.HandleFunc(queue.SendTypeFor(providerType), handlers.AsynqSendHandler)
+	}
+
 	srv := asynq.NewServer(redisOpt, asynq.Config{
-		Queues: map[string]int{
-			queue.QueueFanout:        5,
-			queue.SendTypeFor("fcm"): 10,
-		},
+		Queues:         queues,
 		RetryDelayFunc: queue.RetryDelayFunc,
 		Logger:         asynqZerologAdapter{logger},
 	})
 
-	mux := asynq.NewServeMux()
-	mux.HandleFunc(queue.TypeFanout, handlers.AsynqFanoutHandler)
-	mux.HandleFunc(queue.SendTypeFor("fcm"), handlers.AsynqSendHandler)
-
-	logger.Info().Msg("worker: listening on queues [fanout, send:fcm]")
+	logger.Info().Strs("providers", supportedProviders).Msg("worker: listening on fanout + per-provider send queues")
 	return srv.Run(mux)
 }
 
@@ -232,7 +243,7 @@ func runMigrate(cfg config.Config, logger zerolog.Logger) error {
 // account into provider_credentials to test a real send.
 func runSeedCredential(cfg config.Config, logger zerolog.Logger, args []string) error {
 	fs := flag.NewFlagSet("seed-credential", flag.ExitOnError)
-	providerType := fs.String("provider", "fcm", "provider type (fcm)")
+	providerType := fs.String("provider", "fcm", fmt.Sprintf("provider type (%s)", strings.Join(supportedProviders, ", ")))
 	file := fs.String("file", "", "path to the provider credential JSON file (e.g. an FCM service account key)")
 	projectSlug := fs.String("project", "default", "project slug to attach the credential to")
 	if err := fs.Parse(args); err != nil {

@@ -14,12 +14,21 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
+// createNotificationRequest uses OneSignal-style targeting field names
+// (include_player_ids/include_external_user_ids) so a team migrating off
+// OneSignal changes call sites minimally, even though sends go directly to
+// FCM/APNs/HMS/Expo. included_segments/filters are accepted on the wire
+// shape (so the API contract won't need a breaking change later) but
+// rejected for now — segmentation is deliberately not implemented.
 type createNotificationRequest struct {
-	IdempotencyKey string         `json:"idempotency_key,omitempty"`
-	DeviceIDs      []string       `json:"device_ids"`
-	Title          string         `json:"title,omitempty"`
-	Body           string         `json:"body,omitempty"`
-	Data           map[string]any `json:"data,omitempty"`
+	IdempotencyKey         string           `json:"idempotency_key,omitempty"`
+	IncludePlayerIDs       []string         `json:"include_player_ids,omitempty"`
+	IncludeExternalUserIDs []string         `json:"include_external_user_ids,omitempty"`
+	IncludedSegments       []string         `json:"included_segments,omitempty"`
+	Filters                []map[string]any `json:"filters,omitempty"`
+	Title                  string           `json:"title,omitempty"`
+	Body                   string           `json:"body,omitempty"`
+	Data                   map[string]any   `json:"data,omitempty"`
 }
 
 type createNotificationResponse struct {
@@ -32,13 +41,25 @@ func (s *Server) handleCreateNotification(w http.ResponseWriter, r *http.Request
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if len(req.DeviceIDs) == 0 {
-		writeError(w, http.StatusUnprocessableEntity, "device_ids must be non-empty (Phase 1: no group/segment targeting yet)")
+
+	if len(req.IncludedSegments) > 0 || len(req.Filters) > 0 {
+		writeError(w, http.StatusUnprocessableEntity, "included_segments/filters (segmentation) are not yet supported — use include_player_ids or include_external_user_ids")
 		return
 	}
-	if len(req.DeviceIDs) > maxDeviceIDsPerRequest {
+	hasPlayerIDs := len(req.IncludePlayerIDs) > 0
+	hasExternalUserIDs := len(req.IncludeExternalUserIDs) > 0
+	if hasPlayerIDs == hasExternalUserIDs {
+		writeError(w, http.StatusUnprocessableEntity, "exactly one of include_player_ids or include_external_user_ids is required")
+		return
+	}
+	if len(req.IncludePlayerIDs) > maxDeviceIDsPerRequest {
 		writeError(w, http.StatusUnprocessableEntity,
-			fmt.Sprintf("device_ids must contain at most %d entries per request, got %d", maxDeviceIDsPerRequest, len(req.DeviceIDs)))
+			fmt.Sprintf("include_player_ids must contain at most %d entries per request, got %d", maxDeviceIDsPerRequest, len(req.IncludePlayerIDs)))
+		return
+	}
+	if len(req.IncludeExternalUserIDs) > maxDeviceIDsPerRequest {
+		writeError(w, http.StatusUnprocessableEntity,
+			fmt.Sprintf("include_external_user_ids must contain at most %d entries per request, got %d", maxDeviceIDsPerRequest, len(req.IncludeExternalUserIDs)))
 		return
 	}
 	if len(req.IdempotencyKey) > maxIdempotencyKeyLength {
@@ -66,11 +87,11 @@ func (s *Server) handleCreateNotification(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	deviceIDs := make([]uuid.UUID, 0, len(req.DeviceIDs))
-	for _, idStr := range req.DeviceIDs {
+	deviceIDs := make([]uuid.UUID, 0, len(req.IncludePlayerIDs))
+	for _, idStr := range req.IncludePlayerIDs {
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, http.StatusUnprocessableEntity, "device_ids must be valid UUIDs, got: "+idStr)
+			writeError(w, http.StatusUnprocessableEntity, "include_player_ids must be valid UUIDs, got: "+idStr)
 			return
 		}
 		deviceIDs = append(deviceIDs, id)
@@ -83,11 +104,12 @@ func (s *Server) handleCreateNotification(w http.ResponseWriter, r *http.Request
 	}
 
 	n, err := s.Dispatch.CreateNotification(r.Context(), postgres.UUIDTo(project.ID), dispatch.CreateNotificationRequest{
-		IdempotencyKey: req.IdempotencyKey,
-		DeviceIDs:      deviceIDs,
-		Title:          req.Title,
-		Body:           req.Body,
-		Data:           req.Data,
+		IdempotencyKey:  req.IdempotencyKey,
+		DeviceIDs:       deviceIDs,
+		ExternalUserIDs: req.IncludeExternalUserIDs,
+		Title:           req.Title,
+		Body:            req.Body,
+		Data:            req.Data,
 	})
 	if err != nil {
 		if errors.Is(err, dispatch.ErrEmptyTargets) {

@@ -13,23 +13,26 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
-// CreateNotificationRequest is Phase 1's minimal (pre-OneSignal-shape)
-// create-notification request: explicit device ids only. Phase 2 extends
-// this surface with include_external_user_ids (group push) and the
-// OneSignal-compatible field names, without changing this orchestration.
+// CreateNotificationRequest is the create-notification request: exactly one
+// of DeviceIDs (transactional — explicit targets) or ExternalUserIDs (group
+// push — every active device under each subscriber) must be set. The HTTP
+// layer maps these to/from the OneSignal-style `include_player_ids` /
+// `include_external_user_ids` wire field names.
 type CreateNotificationRequest struct {
-	IdempotencyKey string         `json:"idempotency_key,omitempty"`
-	DeviceIDs      []uuid.UUID    `json:"device_ids"`
-	Title          string         `json:"title,omitempty"`
-	Body           string         `json:"body,omitempty"`
-	Data           map[string]any `json:"data,omitempty"`
+	IdempotencyKey  string         `json:"idempotency_key,omitempty"`
+	DeviceIDs       []uuid.UUID    `json:"device_ids"`
+	ExternalUserIDs []string       `json:"external_user_ids"`
+	Title           string         `json:"title,omitempty"`
+	Body            string         `json:"body,omitempty"`
+	Data            map[string]any `json:"data,omitempty"`
 }
 
 // targetSpecJSON is the shape persisted into notifications.target_spec —
 // both the audit record of what was requested and what the fanout handler
 // re-parses (it only receives notification_id/project_id over the queue).
 type targetSpecJSON struct {
-	DeviceIDs []uuid.UUID `json:"device_ids"`
+	DeviceIDs       []uuid.UUID `json:"device_ids"`
+	ExternalUserIDs []string    `json:"external_user_ids"`
 }
 
 var ErrEmptyTargets = errors.New("dispatch: request specifies no targets")
@@ -39,7 +42,7 @@ var ErrEmptyTargets = errors.New("dispatch: request specifies no targets")
 // only in the fanout handler, in the worker — so a large or slow audience
 // can never make this HTTP call block or time out.
 func (h *Handlers) CreateNotification(ctx context.Context, projectID uuid.UUID, req CreateNotificationRequest) (postgres.Notification, error) {
-	if len(req.DeviceIDs) == 0 {
+	if len(req.DeviceIDs) == 0 && len(req.ExternalUserIDs) == 0 {
 		return postgres.Notification{}, ErrEmptyTargets
 	}
 
@@ -60,7 +63,7 @@ func (h *Handlers) CreateNotification(ctx context.Context, projectID uuid.UUID, 
 	if err != nil {
 		return postgres.Notification{}, fmt.Errorf("marshal data: %w", err)
 	}
-	targetSpec, err := json.Marshal(targetSpecJSON{DeviceIDs: req.DeviceIDs})
+	targetSpec, err := json.Marshal(targetSpecJSON{DeviceIDs: req.DeviceIDs, ExternalUserIDs: req.ExternalUserIDs})
 	if err != nil {
 		return postgres.Notification{}, fmt.Errorf("marshal target_spec: %w", err)
 	}
