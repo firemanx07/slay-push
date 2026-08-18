@@ -15,9 +15,8 @@ func newTestCredential() []byte {
 }
 
 // newTestServer serves both the fake OAuth2 token endpoint and the fake HMS
-// send endpoint, picking a scenario based on sendResponse so one server can
-// drive every test case — same pattern as the FCM adapter's tests.
-// tokenRequests, if non-nil, counts how many times the token endpoint was hit.
+// send endpoint, returning sendResponse for every send. tokenRequests, if
+// non-nil, counts how many times the token endpoint was hit.
 func newTestServer(t *testing.T, tokenRequests *int, sendResponse string) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -101,8 +100,7 @@ func TestSend_OAuthTokenExpired_InvalidatesCache(t *testing.T) {
 		t.Errorf("status = %v, want StatusTransientError", result.Status)
 	}
 
-	// The cached token should have been evicted, so the next send fetches
-	// a fresh one instead of reusing the rejected token.
+	// The cached token should have been evicted.
 	if _, err := a.Send(context.Background(), cred, provider.SendRequest{Token: "tok"}); err != nil {
 		t.Fatalf("unexpected error on second send: %v", err)
 	}

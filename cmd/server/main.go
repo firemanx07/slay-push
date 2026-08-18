@@ -1,7 +1,6 @@
 // Command server is the single slay-push binary. Which subcommand you
 // pass selects its run mode; docker-compose.yml wires each container to a
-// different one via `command:` overrides so the whole project ships as
-// one image (see deploy/docker).
+// different one via `command:` overrides (see deploy/docker).
 package main
 
 import (
@@ -39,9 +38,8 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
-// supportedProviders drives both the worker's per-provider queue/handler
-// registration and the seed-credential CLI's flag description — one list,
-// not repeated at each call site.
+// supportedProviders drives the worker's per-provider queue/handler
+// registration and the seed-credential CLI's flag description.
 var supportedProviders = []string{"expo", "fcm", "apns", "hms"}
 
 func main() {
@@ -70,9 +68,9 @@ func main() {
 	case "seed-credential":
 		err = runSeedCredential(cfg, logger, os.Args[2:])
 	case "bootstrap":
-		err = errors.New("bootstrap: not yet implemented (Phase 4)")
+		err = errors.New("bootstrap: not yet implemented")
 	case "rotate-key":
-		err = errors.New("rotate-key: not yet implemented (post-MVP)")
+		err = errors.New("rotate-key: not yet implemented")
 	default:
 		fmt.Fprintln(os.Stderr, usage())
 		os.Exit(2)
@@ -89,9 +87,8 @@ func usage() string {
 }
 
 // runHealthcheckProbe lets `docker compose healthcheck:` call the binary
-// itself (`CMD ["/server", "healthcheck"]`) instead of relying on curl/wget,
-// which the distroless base image doesn't have. It hits the server's own
-// /healthz over loopback and mirrors its HTTP status as an exit code.
+// itself (`CMD ["/server", "healthcheck"]`). It hits /healthz over loopback
+// and mirrors its HTTP status as an exit code.
 func runHealthcheckProbe(cfg config.Config) int {
 	_, port, err := net.SplitHostPort(cfg.HTTPAddr)
 	if err != nil {
@@ -112,10 +109,8 @@ func runHealthcheckProbe(cfg config.Config) int {
 }
 
 // runServe starts the HTTP server: the public dispatch API (register
-// device, create notification, get status) plus /healthz. The htmx
-// dashboard mounts onto the same mux starting Phase 4; serve-api/
-// serve-dashboard remain aliases for serve-all until there's a real reason
-// to split the mux by mode.
+// device, create notification, get status) plus /healthz. serve-api/
+// serve-dashboard are aliases for serve-all.
 func runServe(cfg config.Config, logger zerolog.Logger) error {
 	ctx := context.Background()
 
@@ -172,11 +167,9 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 	}
 }
 
-// runWorker hosts the asynq queue consumer: fanout (target resolution) plus
-// one queue per provider (send:fcm/expo/apns/hms) — a slow/down provider
-// never starves the others. asynq.Server.Run already handles SIGINT/SIGTERM
-// with a graceful shutdown internally, so no manual signal plumbing is
-// needed here.
+// runWorker hosts the asynq queue consumer: fanout (target resolution)
+// plus one queue per provider (send:fcm/expo/apns/hms). asynq.Server.Run
+// handles SIGINT/SIGTERM with a graceful shutdown internally.
 func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	ctx := context.Background()
 
@@ -238,9 +231,8 @@ func runMigrate(cfg config.Config, logger zerolog.Logger) error {
 	return nil
 }
 
-// runSeedCredential is a Phase 1 stand-in for the dashboard's (Phase 4)
-// provider-credential form: without it there's no way to get an FCM service
-// account into provider_credentials to test a real send.
+// runSeedCredential loads a provider credential JSON file into
+// provider_credentials.
 func runSeedCredential(cfg config.Config, logger zerolog.Logger, args []string) error {
 	fs := flag.NewFlagSet("seed-credential", flag.ExitOnError)
 	providerType := fs.String("provider", "fcm", fmt.Sprintf("provider type (%s)", strings.Join(supportedProviders, ", ")))

@@ -7,11 +7,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// This file bridges sqlc's pgx-native types (pgtype.UUID, pgtype.Timestamptz)
-// to the plain google/uuid.UUID and time.Time types the rest of the codebase
-// (HTTP handlers, dispatch orchestration) uses — those are exactly the two
-// places sqlc's wire types are awkward: JSON responses and testability
-// without a live Postgres connection.
+// Bridges sqlc's pgx-native types (pgtype.UUID, pgtype.Timestamptz) to
+// google/uuid.UUID and time.Time.
 
 func UUIDFrom(u uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: u, Valid: true}

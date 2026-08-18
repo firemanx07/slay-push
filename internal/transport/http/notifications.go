@@ -15,11 +15,8 @@ import (
 )
 
 // createNotificationRequest uses OneSignal-style targeting field names
-// (include_player_ids/include_external_user_ids) so a team migrating off
-// OneSignal changes call sites minimally, even though sends go directly to
-// FCM/APNs/HMS/Expo. included_segments/filters are accepted on the wire
-// shape (so the API contract won't need a breaking change later) but
-// rejected for now — segmentation is deliberately not implemented.
+// (include_player_ids/include_external_user_ids). included_segments/filters
+// are accepted on the wire shape but rejected for now.
 type createNotificationRequest struct {
 	IdempotencyKey         string           `json:"idempotency_key,omitempty"`
 	IncludePlayerIDs       []string         `json:"include_player_ids,omitempty"`

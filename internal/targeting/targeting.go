@@ -1,9 +1,5 @@
 // Package targeting resolves a notification's target_spec into a concrete
-// list of device ids. It is deliberately a strategy interface rather than a
-// growing if/else: ByGroup (group push, via the subscribers table) is a
-// second implementation alongside ByExplicitTargets, and a future ByFilter
-// (segmentation) could be added later, without touching whichever
-// strategies already exist or the dispatch/fanout code that calls Resolve.
+// list of device ids.
 package targeting
 
 import (
@@ -30,9 +26,7 @@ type Resolver interface {
 	Resolve(ctx context.Context, projectID uuid.UUID, spec Spec) ([]uuid.UUID, error)
 }
 
-// DeviceLookup is the slice of *postgres.Queries ByExplicitTargets needs,
-// kept as an interface so strategies are unit-testable without a live
-// database.
+// DeviceLookup is the slice of *postgres.Queries ByExplicitTargets needs.
 type DeviceLookup interface {
 	GetDevicesByIDs(ctx context.Context, arg postgres.GetDevicesByIDsParams) ([]postgres.Device, error)
 }
@@ -42,10 +36,8 @@ type GroupLookup interface {
 	GetActiveDevicesBySubscriberExternalIDs(ctx context.Context, arg postgres.GetActiveDevicesBySubscriberExternalIDsParams) ([]postgres.Device, error)
 }
 
-// ByExplicitTargets resolves a transactional send: the caller already knows
-// which device ids it wants. Ids that don't belong to the project (wrong
-// tenant, typo, deleted device) are silently dropped rather than erroring —
-// resolved targets are exactly "the subset of requested ids that are ours."
+// ByExplicitTargets resolves an explicit list of device ids. Ids that don't
+// belong to the project are dropped rather than erroring.
 type ByExplicitTargets struct {
 	DB DeviceLookup
 }
@@ -70,10 +62,9 @@ func (r *ByExplicitTargets) Resolve(ctx context.Context, projectID uuid.UUID, sp
 	return ids, nil
 }
 
-// ByGroup resolves a group push: every active device belonging to a
-// subscribed (not opted-out) subscriber matching any of the given external
-// ids. Unknown external ids simply resolve to no devices, same silent-drop
-// posture as ByExplicitTargets.
+// ByGroup resolves every active device belonging to a subscribed subscriber
+// matching any of the given external ids. Unknown external ids resolve to
+// no devices.
 type ByGroup struct {
 	DB GroupLookup
 }
@@ -98,10 +89,8 @@ func (r *ByGroup) Resolve(ctx context.Context, projectID uuid.UUID, spec Spec) (
 	return ids, nil
 }
 
-// Registry is the small dispatch-selection switch, keyed by which field on
-// Spec is populated. A future ByFilter (segmentation) means adding one more
-// case here plus its own file — ByExplicitTargets/ByGroup and every caller
-// of Resolve are unaffected.
+// Registry dispatches to a strategy based on which field on Spec is
+// populated.
 type Registry struct {
 	explicit *ByExplicitTargets
 	group    *ByGroup

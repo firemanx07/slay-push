@@ -1,7 +1,6 @@
 // Package queue defines the asynq task types and payloads shared between
-// the HTTP layer (which enqueues) and the worker (which consumes). One
-// queue per provider (send:fcm, send:expo, ... added as each adapter lands)
-// so a slow/down provider never starves the others.
+// the HTTP layer and the worker. One queue per provider (send:fcm,
+// send:expo, send:apns, send:hms).
 package queue
 
 import (
@@ -39,9 +38,8 @@ type SendPayload struct {
 	Data           map[string]any `json:"data,omitempty"`
 }
 
-// ParseRedisOpt is shared by the HTTP-side client (NewClient) and the
-// worker's asynq.Server construction (cmd/server), so the URL-parsing logic
-// exists exactly once.
+// ParseRedisOpt is shared by NewClient and cmd/server's asynq.Server
+// construction.
 func ParseRedisOpt(redisURL string) (asynq.RedisConnOpt, error) {
 	return asynq.ParseRedisURI(redisURL)
 }
@@ -64,10 +62,8 @@ func EnqueueFanout(client *asynq.Client, payload FanoutPayload) error {
 	return err
 }
 
-// EnqueueSend is keyed by recipient id (asynq.TaskID), so re-enqueueing the
-// same recipient while a task is already pending/in-flight is a no-op
-// rather than a duplicate send — the queue-layer half of the idempotency
-// story (the DB-status check in the send handler is the other half).
+// EnqueueSend is keyed by recipient id (asynq.TaskID): re-enqueueing the
+// same recipient while a task is pending/in-flight is a no-op.
 func EnqueueSend(client *asynq.Client, payload SendPayload) error {
 	b, err := json.Marshal(payload)
 	if err != nil {
@@ -86,9 +82,8 @@ func EnqueueSend(client *asynq.Client, payload SendPayload) error {
 	return err
 }
 
-// ThrottledError lets a provider adapter's StatusThrottled result carry a
-// provider-supplied Retry-After through to asynq's retry scheduling —
-// honored opportunistically (see RetryDelayFunc), never assumed present.
+// ThrottledError carries a provider-supplied Retry-After through to
+// asynq's retry scheduling (see RetryDelayFunc).
 type ThrottledError struct {
 	RetryAfter time.Duration
 	Err        error
@@ -97,10 +92,8 @@ type ThrottledError struct {
 func (e *ThrottledError) Error() string { return e.Err.Error() }
 func (e *ThrottledError) Unwrap() error { return e.Err }
 
-// RetryDelayFunc honors a provider's Retry-After when the failing error is
-// a *ThrottledError with one set, falling back to asynq's default
-// exponential backoff otherwise — none of the four providers is confirmed
-// to reliably send Retry-After, so the static backoff is the real backstop.
+// RetryDelayFunc honors Retry-After on a *ThrottledError, falling back to
+// asynq's default exponential backoff otherwise.
 func RetryDelayFunc(n int, err error, task *asynq.Task) time.Duration {
 	var te *ThrottledError
 	if errors.As(err, &te) && te.RetryAfter > 0 {

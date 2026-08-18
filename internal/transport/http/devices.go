@@ -13,11 +13,8 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
-// platforms is the enum for what kind of device this is — distinct from
-// `provider`, which is which push network to send through. A "web" device
-// is a real platform even though there's no dedicated web-push adapter:
-// FCM's HTTP v1 API already serves Web Push subscriptions, so a web device
-// registers with provider "fcm" like any other FCM-backed device.
+// platforms is the enum for device kind (ios/android/web), distinct from
+// `provider` (which push network to use).
 var platforms = map[string]bool{"ios": true, "android": true, "web": true}
 
 type coordsRequest struct {
@@ -25,12 +22,9 @@ type coordsRequest struct {
 	Lon float64 `json:"lon"`
 }
 
-// deviceInfoRequest is device-describing metadata, entirely optional and
-// stored as-is in devices.metadata (jsonb) — a flexible bag so adding a new
-// optional attribute later never needs a migration. last_seen_ip is
-// deliberately NOT part of this struct: a client-supplied IP can't be
-// trusted, so the server captures the real request IP itself instead (see
-// handleRegisterDevice).
+// deviceInfoRequest is optional device metadata, stored as-is in
+// devices.metadata (jsonb). last_seen_ip is not part of this struct — the
+// server captures it directly (see handleRegisterDevice).
 type deviceInfoRequest struct {
 	Brand      string         `json:"brand,omitempty"`
 	OSVersion  string         `json:"os_version,omitempty"`
@@ -127,9 +121,7 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// subscriber_id stays NULL (its zero value) when no external_user_id is
-	// given — UpsertDevice's on-conflict path coalesces it, so a device
-	// re-registering without external_user_id never loses an existing link.
+	// subscriber_id stays NULL when no external_user_id is given.
 	var subscriberID pgtype.UUID
 	if req.ExternalUserID != "" {
 		subscriber, err := s.DB.UpsertSubscriber(r.Context(), postgres.UpsertSubscriberParams{
@@ -188,11 +180,9 @@ func buildDeviceMetadata(info *deviceInfoRequest, ip string) map[string]any {
 	return m
 }
 
-// clientIP reads the real observed request IP — never trusted from the
-// request body, since a client can claim to be anywhere. X-Forwarded-For is
-// honored (first entry) for deployments behind a reverse proxy, per the
-// Docker Compose plan's expectation that operators front this with
-// Caddy/Traefik/nginx; falls back to the raw connection's RemoteAddr.
+// clientIP reads the real observed request IP, never from the request
+// body. X-Forwarded-For is honored (first entry), falling back to
+// RemoteAddr.
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")

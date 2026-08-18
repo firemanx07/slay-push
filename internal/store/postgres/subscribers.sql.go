@@ -25,9 +25,8 @@ type GetActiveDevicesBySubscriberExternalIDsParams struct {
 	ExternalIds []string    `json:"external_ids"`
 }
 
-// The whole ByGroup targeting resolution in one query: active devices
-// belonging to subscribed (not opted-out) subscribers matching any of the
-// given external ids, scoped to the project.
+// Active devices under subscribed subscribers matching any of the given
+// external ids, scoped to the project.
 func (q *Queries) GetActiveDevicesBySubscriberExternalIDs(ctx context.Context, arg GetActiveDevicesBySubscriberExternalIDsParams) ([]Device, error) {
 	rows, err := q.db.Query(ctx, getActiveDevicesBySubscriberExternalIDs, arg.ProjectID, arg.ExternalIds)
 	if err != nil {

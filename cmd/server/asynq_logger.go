@@ -6,9 +6,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// asynqZerologAdapter routes asynq's own internal logging through our
-// zerolog logger, so worker logs are structured/consistent with the rest of
-// the process instead of asynq's default plain-text logger.
+// asynqZerologAdapter routes asynq's internal logging through our zerolog
+// logger.
 type asynqZerologAdapter struct {
 	logger zerolog.Logger
 }

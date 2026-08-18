@@ -1,9 +1,4 @@
 // Package expo sends push notifications directly to Expo's push service.
-// Hand-rolled rather than depending on a third-party SDK: the community Go
-// client (oliveroneill/exponent-server-sdk-golang) is effectively dead
-// (last tag 2019), and the Expo push API is a simple JSON POST plus ticket
-// parsing — cheap and lower-risk to implement directly than depending on an
-// unmaintained package.
 package expo
 
 import (
@@ -23,8 +18,7 @@ func init() {
 	provider.Register("expo", New)
 }
 
-// credentialJSON's access_token is optional: Expo push works without one,
-// an access token just raises the account's rate-limit ceiling.
+// credentialJSON's access_token is optional.
 type credentialJSON struct {
 	AccessToken string `json:"access_token"`
 }
@@ -73,10 +67,7 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 		_ = json.Unmarshal(credential, &cred) // access_token is optional; a missing/empty credential is valid
 	}
 
-	// The Adapter interface sends one recipient per call; Expo's API accepts
-	// a batch array (up to 100 messages), so this is a single-element batch.
-	// Buffering multiple per-recipient send tasks into real batched calls is
-	// a future throughput optimization, not required for correctness.
+	// Expo's API accepts a batch array; this is a single-element batch.
 	payload, err := json.Marshal([]message{{To: req.Token, Title: req.Title, Body: req.Body, Data: req.Data}})
 	if err != nil {
 		return provider.SendResult{}, fmt.Errorf("expo: marshal request: %w", err)
@@ -118,9 +109,7 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 		return provider.SendResult{}, fmt.Errorf("expo: parse response: %w", err)
 	}
 	if len(parsed.Errors) > 0 {
-		// Request-level error (malformed batch, invalid credentials) rather
-		// than a per-ticket outcome — no specific request-level error code
-		// is documented as retryable-vs-not, so this is treated as transient.
+		// Request-level error, not a per-ticket outcome.
 		return provider.SendResult{
 			Status: provider.StatusTransientError,
 			Err:    fmt.Errorf("expo: request-level error: %s", parsed.Errors[0].Message),

@@ -1,7 +1,5 @@
 // Package apns sends push notifications directly to Apple's APNs HTTP/2
-// service via sideshow/apns2 — confirmed the healthiest APNs client across
-// Go/Node/Python (see the plan's language-choice research), so this is a
-// thin wrapper rather than a hand-rolled client.
+// service via sideshow/apns2.
 package apns
 
 import (
@@ -22,12 +20,7 @@ func init() {
 	provider.Register("apns", New)
 }
 
-// credentialJSON supports both auth modes from day one, since migrating
-// teams may only have a legacy certificate: token-based (.p8, no expiry,
-// the default/preferred) and cert-based (annual expiry). environment
-// lives inside the credential JSON itself — this is fundamentally "which
-// Apple server to hit," an APNs-specific concept independent of whatever
-// label a project gives its provider_credentials row.
+// credentialJSON supports token-based (.p8) and cert-based auth.
 type credentialJSON struct {
 	AuthType    string `json:"auth_type"`   // "token" (default) or "cert"
 	Environment string `json:"environment"` // "production" (default) or "sandbox"
@@ -41,7 +34,7 @@ type credentialJSON struct {
 	CertPEM string `json:"cert_pem"`
 	KeyPEM  string `json:"key_pem"`
 
-	// Common — the topic APNs requires, typically the app's bundle id.
+	// Topic APNs requires, typically the app's bundle id.
 	BundleID string `json:"bundle_id"`
 }
 
@@ -52,7 +45,7 @@ type cachedClient struct {
 
 type adapter struct {
 	mu      sync.Mutex
-	clients map[[32]byte]*cachedClient // keyed by sha256(credential bytes), same caching pattern as the FCM adapter
+	clients map[[32]byte]*cachedClient // keyed by sha256(credential bytes)
 }
 
 func New() provider.Adapter {
@@ -138,12 +131,8 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 	return classifyResponse(resp), nil
 }
 
-// classifyResponse maps an APNs response Reason to the coarse
-// provider.Status the dispatch worker retries (or doesn't retry) on. The
-// full Reason list is much longer (bad topic, bad certificate, malformed
-// payload, ...) — those are configuration/client-bug errors rather than
-// per-device outcomes, and fall through to the transient default, which
-// simply exhausts retries rather than looping forever.
+// classifyResponse maps an APNs response Reason to a provider.Status.
+// Reasons not listed explicitly fall through to the transient default.
 func classifyResponse(resp *apns2.Response) provider.SendResult {
 	if resp.Sent() {
 		return provider.SendResult{ProviderMessageID: resp.ApnsID, Status: provider.StatusSent}

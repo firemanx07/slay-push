@@ -13,11 +13,9 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
-// CreateNotificationRequest is the create-notification request: exactly one
-// of DeviceIDs (transactional — explicit targets) or ExternalUserIDs (group
-// push — every active device under each subscriber) must be set. The HTTP
-// layer maps these to/from the OneSignal-style `include_player_ids` /
-// `include_external_user_ids` wire field names.
+// CreateNotificationRequest: exactly one of DeviceIDs (explicit targets) or
+// ExternalUserIDs (group push, every active device under each subscriber)
+// must be set.
 type CreateNotificationRequest struct {
 	IdempotencyKey  string         `json:"idempotency_key,omitempty"`
 	DeviceIDs       []uuid.UUID    `json:"device_ids"`
@@ -27,9 +25,8 @@ type CreateNotificationRequest struct {
 	Data            map[string]any `json:"data,omitempty"`
 }
 
-// targetSpecJSON is the shape persisted into notifications.target_spec —
-// both the audit record of what was requested and what the fanout handler
-// re-parses (it only receives notification_id/project_id over the queue).
+// targetSpecJSON is persisted into notifications.target_spec and re-parsed
+// by the fanout handler.
 type targetSpecJSON struct {
 	DeviceIDs       []uuid.UUID `json:"device_ids"`
 	ExternalUserIDs []string    `json:"external_user_ids"`
@@ -38,9 +35,8 @@ type targetSpecJSON struct {
 var ErrEmptyTargets = errors.New("dispatch: request specifies no targets")
 
 // CreateNotification persists the notification (status=pending) and
-// enqueues exactly one fanout job. Audience resolution never happens here —
-// only in the fanout handler, in the worker — so a large or slow audience
-// can never make this HTTP call block or time out.
+// enqueues one fanout job. Audience resolution happens only in the fanout
+// handler, in the worker.
 func (h *Handlers) CreateNotification(ctx context.Context, projectID uuid.UUID, req CreateNotificationRequest) (postgres.Notification, error) {
 	if len(req.DeviceIDs) == 0 && len(req.ExternalUserIDs) == 0 {
 		return postgres.Notification{}, ErrEmptyTargets

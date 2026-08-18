@@ -10,10 +10,8 @@ import (
 	"github.com/firemanx07/slay-push/internal/queue"
 )
 
-// AsynqFanoutHandler and AsynqSendHandler adapt the typed HandleFanout/
-// HandleSend methods to asynq.HandlerFunc's (ctx, *asynq.Task) signature —
-// kept as a thin translation layer so the handlers themselves stay
-// testable without constructing an *asynq.Task.
+// AsynqFanoutHandler and AsynqSendHandler adapt HandleFanout/HandleSend to
+// asynq.HandlerFunc's (ctx, *asynq.Task) signature.
 
 func (h *Handlers) AsynqFanoutHandler(ctx context.Context, task *asynq.Task) error {
 	var payload queue.FanoutPayload

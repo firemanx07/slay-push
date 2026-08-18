@@ -26,18 +26,14 @@ func NewHandlers(db *postgres.Queries, q *asynq.Client, targetingRegistry *targe
 	return &Handlers{DB: db, Queue: q, Targeting: targetingRegistry, Logger: logger}
 }
 
-// terminalRecipientStatuses are statuses HandleSend must never act on again
-// — the DB-level half of the pipeline's idempotency guarantee (the other
-// half is the queue-level asynq.TaskID dedupe in queue.EnqueueSend).
+// terminalRecipientStatuses are statuses HandleSend must never act on again.
 var terminalRecipientStatuses = map[string]bool{
 	"sent":      true,
 	"delivered": true,
 	"failed":    true,
 }
 
-// failRecipient is the one place notification_recipients transitions to
-// "failed" from, so every failure path (invalid token, exhausted retries,
-// missing credential, unknown provider) records it identically.
+// failRecipient marks a recipient failed with the given error code/message.
 func (h *Handlers) failRecipient(ctx context.Context, recipientID uuid.UUID, code, message string) {
 	if err := h.DB.MarkRecipientFailed(ctx, postgres.MarkRecipientFailedParams{
 		ID:           postgres.UUIDFrom(recipientID),

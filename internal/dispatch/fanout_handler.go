@@ -28,8 +28,7 @@ func (h *Handlers) HandleFanout(ctx context.Context, payload queue.FanoutPayload
 	var spec targetSpecJSON
 	if err := json.Unmarshal(n.TargetSpec, &spec); err != nil {
 		_ = h.DB.SetNotificationStatus(ctx, postgres.SetNotificationStatusParams{ID: n.ID, Status: "failed"})
-		// A malformed target_spec was already persisted at creation time —
-		// retrying fanout can't fix it, so this is a terminal failure.
+		// target_spec is malformed; not retryable.
 		return fmt.Errorf("invalid target_spec (not retryable): %w", err)
 	}
 
@@ -99,12 +98,8 @@ func (h *Handlers) HandleFanout(ctx context.Context, payload queue.FanoutPayload
 	return h.DB.SetNotificationStatus(ctx, postgres.SetNotificationStatusParams{ID: n.ID, Status: "processing"})
 }
 
-// getOrCreateRecipient is the idempotency anchor for fanout itself: a
-// retried fanout task (e.g. after a mid-run crash) must reuse the same
-// recipient row rather than erroring on the unique (notification_id,
-// device_id) constraint or creating a duplicate. InsertNotificationRecipient
-// uses "on conflict do nothing returning *", so a conflict comes back as
-// pgx.ErrNoRows — in which case the existing row is fetched instead.
+// getOrCreateRecipient inserts a recipient row, or fetches the existing one
+// on a (notification_id, device_id) conflict.
 func (h *Handlers) getOrCreateRecipient(ctx context.Context, notificationID, deviceID pgtype.UUID, providerType string) (postgres.NotificationRecipient, error) {
 	recipient, err := h.DB.InsertNotificationRecipient(ctx, postgres.InsertNotificationRecipientParams{
 		NotificationID: notificationID,

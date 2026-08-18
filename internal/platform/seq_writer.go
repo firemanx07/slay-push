@@ -8,10 +8,8 @@ import (
 	"time"
 )
 
-// seqWriter batches zerolog JSON lines, remaps them to the minimal CLEF
-// (Compact Log Event Format) shape Seq's raw ingestion endpoint expects,
-// and flushes them asynchronously so logging never blocks on an HTTP
-// round-trip per line.
+// seqWriter batches zerolog JSON lines, remaps them to CLEF (Compact Log
+// Event Format), and flushes them asynchronously.
 type seqWriter struct {
 	url    string
 	client *http.Client

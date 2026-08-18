@@ -1,10 +1,7 @@
-// Package config loads process configuration from environment variables.
-//
-// Per the project plan, most operator-facing settings (auth mode, OIDC
-// config, rate-limit overrides, ...) live in Postgres and are edited from
-// the dashboard after bootstrap. What lives here is only what's needed
-// before the database is even reachable: how to reach Postgres/Redis, how
-// to log, and which port to bind.
+// Package config loads process configuration from environment variables:
+// how to reach Postgres/Redis, how to log, and which port to bind. Other
+// operator-facing settings live in Postgres, edited from the dashboard
+// after bootstrap.
 package config
 
 import (

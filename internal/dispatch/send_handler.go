@@ -12,8 +12,7 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
-// environment is fixed to "production" until the dashboard (Phase 4) can
-// configure per-project environments (e.g. APNs sandbox vs production).
+// environment is fixed to "production" for now.
 const environment = "production"
 
 // HandleSend calls the right provider adapter for one recipient and
@@ -26,9 +25,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		return fmt.Errorf("fetch recipient: %w", err)
 	}
 	if terminalRecipientStatuses[recipient.Status] {
-		// Defense-in-depth idempotency: a previous attempt already reached
-		// a terminal state (the queue-level asynq.TaskID dedupe is the
-		// other half of this guarantee).
+		// Already reached a terminal state.
 		return nil
 	}
 
@@ -43,10 +40,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 	})
 	if err != nil {
 		h.failRecipient(ctx, payload.RecipientID, "no_credential", err.Error())
-		// A missing/inactive credential is a configuration problem, not a
-		// transient one — retrying won't fix it, so this skips asynq's
-		// retry/backoff entirely instead of wasting a wasted retry cycle
-		// that would just re-hit the same terminal-status no-op on replay.
+		// Not retryable: skip asynq's retry/backoff.
 		return fmt.Errorf("%w: no active %s credential for project: %v", asynq.SkipRetry, payload.ProviderType, err)
 	}
 

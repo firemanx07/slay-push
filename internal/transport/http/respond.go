@@ -11,9 +11,8 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// writeError uses a single consistent error envelope for this service's own
-// errors, deliberately not chasing OneSignal's inconsistent array-or-object
-// error shape.
+// writeError uses a single consistent error envelope for this service's
+// own errors.
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }

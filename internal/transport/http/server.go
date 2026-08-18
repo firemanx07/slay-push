@@ -1,6 +1,5 @@
-// Package http wires the public JSON API. Phase 1 has no auth yet — every
-// request implicitly targets the single seeded "default" project; Phase 3
-// replaces resolveProject with API-key-based project resolution.
+// Package http wires the public JSON API. Every request currently targets
+// the single seeded "default" project.
 package http
 
 import (

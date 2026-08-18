@@ -87,10 +87,7 @@ type UpsertDeviceParams struct {
 	SubscriberID pgtype.UUID `json:"subscriber_id"`
 }
 
-// subscriber_id is only ever updated when a non-null value is supplied
-// (coalesce keeps the existing link) — re-registering the same token with a
-// new external_user_id reassigns it to that subscriber, but omitting
-// external_user_id on a later registration doesn't silently unlink it.
+// subscriber_id keeps its existing value when omitted.
 func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error) {
 	row := q.db.QueryRow(ctx, upsertDevice,
 		arg.ProjectID,

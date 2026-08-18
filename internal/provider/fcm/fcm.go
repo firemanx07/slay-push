@@ -1,8 +1,5 @@
 // Package fcm sends push notifications directly to Firebase Cloud
-// Messaging's HTTP v1 API. Deliberately hand-rolled (HTTP + OAuth2) instead
-// of depending on firebase.google.com/go/v4: that SDK's App constructor
-// forces in Firestore/Auth/RemoteConfig/Storage packages alongside
-// messaging, a real static-binary weight cost with no benefit here.
+// Messaging's HTTP v1 API.
 package fcm
 
 import (
@@ -51,10 +48,8 @@ func New() provider.Adapter {
 
 func (a *adapter) Name() string { return "fcm" }
 
-// tokenSourceFor returns a cached, self-refreshing OAuth2 token source per
-// distinct credential. The cache is keyed by a hash of the credential bytes
-// rather than project id, since a single process may (in later phases)
-// serve many tenants' FCM credentials through one adapter instance.
+// tokenSourceFor returns a cached, self-refreshing OAuth2 token source for
+// the given credential, keyed by a hash of the credential bytes.
 func (a *adapter) tokenSourceFor(ctx context.Context, credential json.RawMessage) (oauth2.TokenSource, error) {
 	key := sha256.Sum256(credential)
 

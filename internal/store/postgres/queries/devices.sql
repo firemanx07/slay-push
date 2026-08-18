@@ -1,8 +1,5 @@
 -- name: UpsertDevice :one
--- subscriber_id is only ever updated when a non-null value is supplied
--- (coalesce keeps the existing link) — re-registering the same token with a
--- new external_user_id reassigns it to that subscriber, but omitting
--- external_user_id on a later registration doesn't silently unlink it.
+-- subscriber_id keeps its existing value when omitted.
 insert into devices (project_id, token, platform, provider_type, metadata, subscriber_id)
 values ($1, $2, $3, $4, $5, sqlc.narg(subscriber_id))
 on conflict (project_id, token) do update set

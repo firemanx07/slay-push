@@ -1,14 +1,4 @@
 // Package hms sends push notifications directly to Huawei's HMS Push Kit.
-// Hand-rolled: no maintained Go (or Node/Python) client exists for this API
-// in any language, confirmed during the plan's language-choice research.
-//
-// The OAuth2 token endpoint, send endpoint shape, and error-code table below
-// were verified against two independent open-source client implementations
-// plus multiple third-party integration writeups that quote the wire format
-// verbatim (Huawei's own developer.huawei.com docs were not directly
-// fetchable during that research) — treat the error-code classification as
-// well-corroborated but not an official-docs guarantee, and revisit if
-// Huawei's behavior turns out to differ.
 package hms
 
 import (
@@ -62,9 +52,8 @@ func New() provider.Adapter {
 
 func (a *adapter) Name() string { return "hms" }
 
-// accessTokenFor returns a cached OAuth2 access token per distinct
-// credential, refreshed a little before its actual expiry to avoid a send
-// call racing the exact expiry instant.
+// accessTokenFor returns a cached OAuth2 access token for the given
+// credential, refreshed shortly before expiry.
 func (a *adapter) accessTokenFor(ctx context.Context, credential json.RawMessage, cred credentialJSON) (string, error) {
 	key := sha256.Sum256(credential)
 
@@ -137,8 +126,8 @@ type hmsNotification struct {
 	Body  string `json:"body,omitempty"`
 }
 
-// sendResponse: HMS returns HTTP 200 for nearly every outcome, success and
-// error alike — the actual result lives in Code, not the HTTP status.
+// sendResponse: HMS returns HTTP 200 for most outcomes; the actual result
+// is in Code, not the HTTP status.
 type sendResponse struct {
 	Code      string `json:"code"`
 	Msg       string `json:"msg"`
@@ -212,12 +201,8 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 	return a.classify(credential, parsed), nil
 }
 
-// classify maps HMS's response `code` to the coarse provider.Status the
-// dispatch worker retries (or doesn't retry) on. Every code not explicitly
-// listed here (bad parameters, oversized payload, missing permissions, ...)
-// is a configuration/client-bug error rather than a per-device outcome, and
-// falls through to the transient default, which simply exhausts retries
-// rather than looping forever.
+// classify maps HMS's response `code` to a provider.Status. Codes not
+// listed explicitly fall through to the transient default.
 func (a *adapter) classify(credential json.RawMessage, parsed sendResponse) provider.SendResult {
 	switch parsed.Code {
 	case codeSuccess:
@@ -226,9 +211,7 @@ func (a *adapter) classify(credential json.RawMessage, parsed sendResponse) prov
 		return provider.SendResult{Status: provider.StatusInvalidToken,
 			Err: fmt.Errorf("hms: %s: %s", parsed.Code, parsed.Msg)}
 	case codeOAuthAuthError, codeOAuthTokenExpired:
-		// Our cached token was rejected mid-use — evict it so the next
-		// retry (via the normal queue backoff) fetches a fresh one instead
-		// of repeating the same rejected token.
+		// Evict the cached token; the next retry fetches a fresh one.
 		a.invalidateToken(credential)
 		return provider.SendResult{Status: provider.StatusTransientError,
 			Err: fmt.Errorf("hms: %s: %s (token invalidated, will refresh on retry)", parsed.Code, parsed.Msg)}
@@ -250,8 +233,8 @@ func retryAfter(resp *http.Response) time.Duration {
 	return 0
 }
 
-// stringifyData JSON-encodes the data payload into a single string, per
-// HMS's `message.data` field shape (a string, not a nested object).
+// stringifyData JSON-encodes the data payload into a single string, the
+// shape HMS's `message.data` field requires.
 func stringifyData(data map[string]any) string {
 	if len(data) == 0 {
 		return ""

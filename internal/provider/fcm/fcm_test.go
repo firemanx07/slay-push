@@ -15,10 +15,8 @@ import (
 	"github.com/firemanx07/slay-push/internal/provider"
 )
 
-// newTestCredential builds a fake, throwaway service-account credential
-// whose token_uri points at the given test server, so the OAuth2 JWT
-// exchange itself is exercised against a mock rather than real Google
-// endpoints. No real Google project or key is ever involved.
+// newTestCredential builds a fake service-account credential whose
+// token_uri points at the given test server.
 func newTestCredential(t *testing.T, tokenURL string) []byte {
 	t.Helper()
 

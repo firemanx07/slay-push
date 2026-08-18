@@ -18,9 +18,7 @@ import (
 	"github.com/firemanx07/slay-push/internal/provider"
 )
 
-// newTestCredential builds a fake, throwaway token-auth credential — a real
-// ECDSA key so token.AuthKeyFromBytes parses it, but never used against
-// real Apple endpoints.
+// newTestCredential builds a fake token-auth credential with a real ECDSA key.
 func newTestCredential(t *testing.T) []byte {
 	t.Helper()
 
@@ -47,9 +45,7 @@ func newTestCredential(t *testing.T) []byte {
 	return b
 }
 
-// newTestServer starts a TLS test server with HTTP/2 enabled — apns2 only
-// ever speaks HTTP/2-over-TLS, so a plain httptest.NewTLSServer (HTTP/1.1
-// ALPN only) won't do.
+// newTestServer starts a TLS test server with HTTP/2 enabled.
 func newTestServer(handler http.Handler) *httptest.Server {
 	server := httptest.NewUnstartedServer(handler)
 	server.EnableHTTP2 = true
@@ -57,9 +53,8 @@ func newTestServer(handler http.Handler) *httptest.Server {
 	return server
 }
 
-// newTestAdapter builds an adapter whose cached client for this credential
-// points at the test server instead of Apple's real endpoints, with the
-// transport configured to accept the test server's self-signed certificate.
+// newTestAdapter builds an adapter pointed at the test server, accepting
+// its self-signed certificate.
 func newTestAdapter(t *testing.T, server *httptest.Server, credential []byte) *adapter {
 	t.Helper()
 	a := New().(*adapter)

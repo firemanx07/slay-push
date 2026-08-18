@@ -10,9 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// HealthHandler reports liveness plus a quick Postgres/Redis connectivity
-// check, so orchestrators (docker compose healthcheck, k8s probes) can
-// tell "process is up" apart from "process can actually serve requests."
+// HealthHandler reports liveness plus Postgres/Redis connectivity.
 func HealthHandler(db *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
