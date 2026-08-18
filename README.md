@@ -1,8 +1,6 @@
 # slay-push
 
-<!-- TODO: replace YOUR_GITHUB_USERNAME / YOUR_BMC_USERNAME once accounts exist -->
-[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ea4aaa)](https://github.com/sponsors/YOUR_GITHUB_USERNAME)
-[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a-coffee-ffdd00)](https://www.buymeacoffee.com/YOUR_BMC_USERNAME)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ea4aaa)](https://github.com/sponsors/firemanx07)
 
 Self-hosted, multi-tenant push notification dispatch microservice. Sends directly to Expo,
 FCM (HTTP v1), APNs (HTTP/2), and Huawei HMS Push Kit — no proxying through a third-party
@@ -97,6 +95,4 @@ Converts to Apache-2.0 after the license's change date.
 ## Contributing
 
 Issues and PRs welcome once the MVP phases land. If this project is useful to you, a
-[GitHub Sponsors](https://github.com/sponsors/YOUR_GITHUB_USERNAME) or
-[Buy Me a Coffee](https://www.buymeacoffee.com/YOUR_BMC_USERNAME) contribution helps keep it
-maintained.
+[GitHub Sponsors](https://github.com/sponsors/firemanx07) contribution helps keep it maintained.
