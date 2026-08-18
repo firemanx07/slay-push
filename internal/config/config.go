@@ -20,6 +20,7 @@ type Config struct {
 	SeqURL              string // only consulted when LogFormat == "seq"
 	MasterKey           string // APP_MASTER_KEY, AES-256-GCM key for secrets at rest (base64, 32 bytes decoded)
 	DefaultRateLimitRPS int    // per API key; per-project ceiling is 5x this
+	CookieSecure        bool   // APP_COOKIE_SECURE; false only for local plain-HTTP dev
 }
 
 // Load reads configuration from environment variables, applying defaults
@@ -34,6 +35,7 @@ func Load() Config {
 		SeqURL:              getEnv("SEQ_URL", ""),
 		MasterKey:           os.Getenv("APP_MASTER_KEY"),
 		DefaultRateLimitRPS: getEnvInt("DEFAULT_RATE_LIMIT_RPS", 10),
+		CookieSecure:        getEnvBool("APP_COOKIE_SECURE", true),
 	}
 }
 
@@ -41,6 +43,15 @@ func getEnvInt(key string, fallback int) int {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
+		}
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
 		}
 	}
 	return fallback

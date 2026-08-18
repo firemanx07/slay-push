@@ -1,0 +1,24 @@
+package templates
+
+templ Setup(errorMessage string) {
+	@Layout("Setup") {
+		<main class="auth-page">
+			<h1>Welcome to slay-push</h1>
+			<p>Create the first admin account to get started.</p>
+			if errorMessage != "" {
+				<p class="error">{ errorMessage }</p>
+			}
+			<form method="post" action="/setup">
+				<label>
+					Email
+					<input type="email" name="email" required autofocus/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" required minlength="8"/>
+				</label>
+				<button type="submit">Create admin account</button>
+			</form>
+		</main>
+	}
+}

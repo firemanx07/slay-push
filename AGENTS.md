@@ -15,12 +15,15 @@ API with OneSignal-shaped request/response fields (see `api/openapi.yaml` for th
 
 ```
 cmd/server            main.go — subcommands: serve-all, serve-api, serve-dashboard, worker,
-                       migrate, healthcheck, seed-credential, create-project, create-api-key
-                       (bootstrap and rotate-key are declared but not yet implemented)
+                       migrate, healthcheck, seed-credential, create-project, create-api-key,
+                       bootstrap (rotate-key is declared but not yet implemented)
 internal/
   apikey               API key generation/hashing, scoping, Redis GCRA rate limiting
+  auth                 argon2id password hashing, dashboard session token generation/hashing
   config               env var config loading + validation
   crypto               envelope encryption: per-credential DEK, AES-GCM, master-key wrap/unwrap
+  dashboard            operator dashboard: chi router, handlers, templ templates, static assets,
+                       session-cookie auth middleware (separate from the API's key auth)
   dispatch             notification creation, fanout handler, send handler
   platform             Postgres/Redis setup, structured logging (zerolog + optional Seq sink), healthchecks
   provider             Adapter interface + self-registering factory registry
@@ -57,6 +60,13 @@ api/openapi.yaml       the public HTTP API's OpenAPI 3.0 contract
 - **Async-first.** Notification creation (`POST /api/v1/notifications`) never resolves audience or
   sends in the HTTP request path — it inserts a `pending` row and enqueues one `fanout` job. Audience
   resolution and provider sends happen in the `worker` process via asynq.
+- **Dashboard auth is a separate, session-based mechanism from API-key auth.** `internal/dashboard`
+  mounts at `/` (serve-dashboard/serve-all); `internal/transport/http`'s API mounts at `/api/`
+  (serve-api/serve-all) — see `runServe` in `cmd/server/main.go`. Dashboard sessions are a single
+  opaque high-entropy token (`internal/auth.GenerateSessionToken`/`HashSessionToken`, same
+  crypto/rand+sha256 shape as `internal/apikey`'s API keys) looked up per request in the `sessions`
+  table — no JWT, deliberately, since a dashboard's traffic never approaches where a per-request DB
+  lookup matters. Don't introduce a second session paradigm without a real reason.
 
 ## Commands
 
@@ -80,6 +90,13 @@ Regenerating sqlc code after changing `internal/store/postgres/queries/*.sql` or
 
 ```bash
 sqlc generate
+```
+
+Regenerating templ code after changing a `.templ` file under `internal/dashboard/templates/`
+(generated `_templ.go` files are committed, same convention as sqlc's output):
+
+```bash
+templ generate
 ```
 
 ## Code style
