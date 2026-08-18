@@ -16,7 +16,7 @@ func NewLogger(cfg config.Config) zerolog.Logger {
 		level = zerolog.InfoLevel
 	}
 
-	var writer zerolog.LevelWriter = zerolog.MultiLevelWriter(os.Stdout)
+	writer := zerolog.MultiLevelWriter(os.Stdout)
 	if cfg.LogFormat == "seq" && cfg.SeqURL != "" {
 		writer = zerolog.MultiLevelWriter(os.Stdout, newSeqWriter(cfg.SeqURL))
 	}

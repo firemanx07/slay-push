@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -15,6 +16,8 @@ import (
 	"github.com/firemanx07/slay-push/internal/apikey"
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
+
+const touchAPIKeyTimeout = 5 * time.Second
 
 type ctxKey int
 
@@ -69,7 +72,7 @@ func (s *Server) requireScope(minScope apikey.Scope) func(http.Handler) http.Han
 				return
 			}
 
-			go s.touchAPIKeyLastUsed(key.ID)
+			go s.touchAPIKeyLastUsed(key.ID) //nolint:gosec,contextcheck // deliberately detached from the request context: this write must outlive the response
 
 			next.ServeHTTP(w, r.WithContext(contextWithProjectID(r.Context(), projectID)))
 		})
@@ -77,7 +80,9 @@ func (s *Server) requireScope(minScope apikey.Scope) func(http.Handler) http.Han
 }
 
 func (s *Server) touchAPIKeyLastUsed(id pgtype.UUID) {
-	if err := s.DB.TouchAPIKeyLastUsed(context.Background(), id); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), touchAPIKeyTimeout)
+	defer cancel()
+	if err := s.DB.TouchAPIKeyLastUsed(ctx, id); err != nil {
 		s.Logger.Warn().Err(err).Msg("failed to update api key last_used_at")
 	}
 }

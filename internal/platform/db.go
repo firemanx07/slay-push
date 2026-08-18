@@ -1,3 +1,5 @@
+// Package platform wires up cross-cutting infrastructure: database/Redis
+// connections, structured logging, and healthchecks.
 package platform
 
 import (
@@ -8,6 +10,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// NewPostgresPool opens a pgxpool.Pool and verifies connectivity with a
+// bounded ping before returning.
 func NewPostgresPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -23,6 +27,7 @@ func NewPostgresPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, er
 	return pool, nil
 }
 
+// NewRedisClient builds a Redis client from a redis:// URL.
 func NewRedisClient(redisURL string) (*redis.Client, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {

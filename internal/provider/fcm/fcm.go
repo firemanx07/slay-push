@@ -38,6 +38,7 @@ type adapter struct {
 	tokenSources map[[32]byte]oauth2.TokenSource // keyed by sha256(credential bytes)
 }
 
+// New returns an FCM provider.Adapter.
 func New() provider.Adapter {
 	return &adapter{
 		httpClient:   &http.Client{Timeout: 10 * time.Second},
@@ -139,7 +140,7 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 	if err != nil {
 		return provider.SendResult{Status: provider.StatusTransientError}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 

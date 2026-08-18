@@ -16,6 +16,8 @@ import (
 	"github.com/firemanx07/slay-push/internal/targeting"
 )
 
+// Handlers holds the dependencies shared by the HTTP and worker layers of
+// the notification pipeline.
 type Handlers struct {
 	DB        *postgres.Queries
 	Queue     *asynq.Client
@@ -24,6 +26,7 @@ type Handlers struct {
 	Logger    zerolog.Logger
 }
 
+// NewHandlers builds a Handlers from its dependencies.
 func NewHandlers(db *postgres.Queries, q *asynq.Client, targetingRegistry *targeting.Registry, masterKey crypto.MasterKey, logger zerolog.Logger) *Handlers {
 	return &Handlers{DB: db, Queue: q, Targeting: targetingRegistry, Crypto: masterKey, Logger: logger}
 }

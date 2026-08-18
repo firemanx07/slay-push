@@ -13,9 +13,9 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
-// CreateNotificationRequest: exactly one of DeviceIDs (explicit targets) or
-// ExternalUserIDs (group push, every active device under each subscriber)
-// must be set.
+// CreateNotificationRequest is the input to CreateNotification. Exactly one
+// of DeviceIDs (explicit targets) or ExternalUserIDs (group push, every
+// active device under each subscriber) must be set.
 type CreateNotificationRequest struct {
 	IdempotencyKey  string         `json:"idempotency_key,omitempty"`
 	DeviceIDs       []uuid.UUID    `json:"device_ids"`
@@ -32,6 +32,8 @@ type targetSpecJSON struct {
 	ExternalUserIDs []string    `json:"external_user_ids"`
 }
 
+// ErrEmptyTargets is returned when a CreateNotificationRequest sets neither
+// DeviceIDs nor ExternalUserIDs.
 var ErrEmptyTargets = errors.New("dispatch: request specifies no targets")
 
 // CreateNotification persists the notification (status=pending) and

@@ -12,6 +12,7 @@ import (
 	"github.com/hibiken/asynq"
 )
 
+// Queue and task type names for the fanout stage.
 const (
 	QueueFanout = "fanout"
 
@@ -21,11 +22,13 @@ const (
 // SendTypeFor returns the per-provider task/queue name, e.g. "send:fcm".
 func SendTypeFor(providerType string) string { return "send:" + providerType }
 
+// FanoutPayload is the task payload for the fanout queue.
 type FanoutPayload struct {
 	NotificationID uuid.UUID `json:"notification_id"`
 	ProjectID      uuid.UUID `json:"project_id"`
 }
 
+// SendPayload is the task payload for a per-provider send queue.
 type SendPayload struct {
 	NotificationID uuid.UUID      `json:"notification_id"`
 	RecipientID    uuid.UUID      `json:"recipient_id"`
@@ -44,6 +47,7 @@ func ParseRedisOpt(redisURL string) (asynq.RedisConnOpt, error) {
 	return asynq.ParseRedisURI(redisURL)
 }
 
+// NewClient builds an asynq.Client from a redis:// URL.
 func NewClient(redisURL string) (*asynq.Client, error) {
 	opt, err := ParseRedisOpt(redisURL)
 	if err != nil {
@@ -52,6 +56,7 @@ func NewClient(redisURL string) (*asynq.Client, error) {
 	return asynq.NewClient(opt), nil
 }
 
+// EnqueueFanout enqueues a fanout task for the given notification.
 func EnqueueFanout(client *asynq.Client, payload FanoutPayload) error {
 	b, err := json.Marshal(payload)
 	if err != nil {

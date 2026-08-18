@@ -16,13 +16,16 @@ const (
 	displayPrefixLen = len(livePrefix) + 6
 )
 
+// Scope is the set of operations an API key is authorized to perform.
 type Scope string
 
+// The available scopes. ScopeSend implies ScopeRead.
 const (
 	ScopeRead Scope = "read"
 	ScopeSend Scope = "send"
 )
 
+// ParseScope parses s into a known Scope, reporting false if it isn't one.
 func ParseScope(s string) (Scope, bool) {
 	switch Scope(s) {
 	case ScopeRead, ScopeSend:

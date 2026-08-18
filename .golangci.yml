@@ -1,0 +1,35 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Default set
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # Backend-app additions
+    - bodyclose
+    - sqlclosecheck
+    - rowserrcheck
+    - noctx
+    - gosec
+    - revive
+    - unconvert
+    - unparam
+    - gocritic
+    - misspell
+    - errorlint
+    - contextcheck
+    - nilerr
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

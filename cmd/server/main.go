@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
@@ -102,11 +102,16 @@ func runHealthcheckProbe(cfg config.Config) int {
 	}
 
 	client := http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s/healthz", port))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		fmt.Sprintf("http://127.0.0.1:%s/healthz", port), nil)
 	if err != nil {
 		return 1
 	}
-	defer resp.Body.Close()
+	resp, err := client.Do(req)
+	if err != nil {
+		return 1
+	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return 1
@@ -135,7 +140,7 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("connect redis: %w", err)
 	}
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	queries := postgres.New(db)
 
@@ -143,7 +148,7 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("connect asynq client: %w", err)
 	}
-	defer asynqClient.Close()
+	defer func() { _ = asynqClient.Close() }()
 
 	targetingRegistry := targeting.NewRegistry(queries)
 	dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
@@ -155,7 +160,7 @@ func runServe(cfg config.Config, logger zerolog.Logger) error {
 	mux.Handle("/healthz", platform.HealthHandler(db, rdb))
 	mux.Handle("/", apihttp.NewRouter(apiServer))
 
-	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
+	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -202,7 +207,7 @@ func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("connect asynq client: %w", err)
 	}
-	defer asynqClient.Close()
+	defer func() { _ = asynqClient.Close() }()
 
 	targetingRegistry := targeting.NewRegistry(queries)
 	handlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
@@ -230,12 +235,25 @@ func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	return srv.Run(mux)
 }
 
+// pgx5MigrateURL rewrites a postgres(ql):// DSN to the pgx5:// scheme the
+// golang-migrate pgx/v5 database driver registers itself under.
+func pgx5MigrateURL(databaseURL string) string {
+	switch {
+	case strings.HasPrefix(databaseURL, "postgresql://"):
+		return "pgx5://" + strings.TrimPrefix(databaseURL, "postgresql://")
+	case strings.HasPrefix(databaseURL, "postgres://"):
+		return "pgx5://" + strings.TrimPrefix(databaseURL, "postgres://")
+	default:
+		return databaseURL
+	}
+}
+
 func runMigrate(cfg config.Config, logger zerolog.Logger) error {
-	m, err := migrate.New("file://migrations", cfg.DatabaseURL)
+	m, err := migrate.New("file://migrations", pgx5MigrateURL(cfg.DatabaseURL))
 	if err != nil {
 		return fmt.Errorf("init migrator: %w", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	if err := m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
@@ -337,8 +355,9 @@ func runCreateProject(cfg config.Config, logger zerolog.Logger, args []string) e
 	return nil
 }
 
-// runCreateAPIKey creates an API key for a project. The raw key is shown
-// once, in the command's own log line — it is never retrievable again.
+// runCreateAPIKey creates an API key for a project. The raw key is printed
+// to stdout once and is never retrievable again; it is never written to the
+// structured log.
 func runCreateAPIKey(cfg config.Config, logger zerolog.Logger, args []string) error {
 	fs := flag.NewFlagSet("create-api-key", flag.ExitOnError)
 	projectSlug := fs.String("project", "", "project slug")
@@ -383,6 +402,7 @@ func runCreateAPIKey(cfg config.Config, logger zerolog.Logger, args []string) er
 		return fmt.Errorf("create api key: %w", err)
 	}
 
+	logger.Info().Str("project", *projectSlug).Str("scope", string(scope)).Msg("api key created")
 	fmt.Printf("API key created for project %q (scope=%s). Save it now — it cannot be shown again:\n%s\n", *projectSlug, scope, raw)
 	return nil
 }

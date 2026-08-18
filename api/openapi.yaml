@@ -1,0 +1,361 @@
+openapi: 3.0.3
+info:
+  title: slay-push API
+  description: >
+    Multi-tenant push notification dispatch. Register a device once (device_type
+    supplied explicitly, never inferred), then send by explicit device id
+    (transactional) or by external_user_id (group push, fans out to every
+    active device under that subscriber). Request/response field names follow
+    OneSignal's REST shapes where practical, to ease migration — sends go
+    directly to Expo/FCM/APNs/HMS rather than through a third party.
+  version: "1.0"
+  license:
+    name: See repository LICENSE
+servers:
+  - url: /api/v1
+
+security:
+  - apiKey: []
+
+tags:
+  - name: devices
+    description: Device/subscriber registry.
+  - name: notifications
+    description: Sending and status tracking.
+
+paths:
+  /devices:
+    post:
+      operationId: registerDevice
+      tags: [devices]
+      summary: Register or update a device
+      description: >
+        Upserts on (project, token). Supplying external_user_id groups this
+        device under a subscriber for group push; omitting it registers a
+        standalone device that can still be targeted explicitly by id.
+      security:
+        - apiKey: [send]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDeviceRequest"
+      responses:
+        "200":
+          description: Device registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterDeviceResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /notifications:
+    post:
+      operationId: createNotification
+      tags: [notifications]
+      summary: Create and enqueue a notification
+      description: >
+        Returns immediately with a pending notification id; audience
+        resolution and delivery happen asynchronously in the worker. Exactly
+        one of include_player_ids or include_external_user_ids is required.
+        included_segments/filters are accepted for request-shape
+        compatibility with OneSignal but rejected with 422 — segmentation is
+        not yet supported.
+      security:
+        - apiKey: [send]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationRequest"
+      responses:
+        "202":
+          description: Notification accepted and enqueued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateNotificationResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /notifications/{id}:
+    get:
+      operationId: getNotification
+      tags: [notifications]
+      summary: Get aggregate delivery status
+      description: >
+        "Delivered" is scoped honestly: provider responses only confirm
+        accepted-by-provider, not delivered-to-device.
+      security:
+        - apiKey: [read]
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "200":
+          description: Aggregate status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /notifications/{id}/recipients:
+    get:
+      operationId: listNotificationRecipients
+      tags: [notifications]
+      summary: List per-device delivery detail
+      description: An addition beyond OneSignal's public surface.
+      security:
+        - apiKey: [read]
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "200":
+          description: One entry per targeted device.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recipient"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: >
+        API key in `sp_live_<random>` / `sp_test_<random>` format, sent as
+        `Authorization: Bearer <key>`. Keys carry a `read` or `send` scope
+        (`send` implies `read`).
+
+  parameters:
+    NotificationID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    RegisterDeviceRequest:
+      type: object
+      required: [token, provider, platform]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          maxLength: 4096
+          description: The raw push token/registration id for the given provider.
+        provider:
+          type: string
+          enum: [expo, fcm, apns, hms]
+          description: Which push network to use. Required, never inferred from token shape.
+        platform:
+          type: string
+          enum: [ios, android, web]
+          description: What kind of device this is, distinct from `provider`.
+        external_user_id:
+          type: string
+          maxLength: 256
+          description: Groups this device under a subscriber for group push. Omit for a standalone device.
+        device:
+          $ref: "#/components/schemas/DeviceInfo"
+
+    DeviceInfo:
+      type: object
+      additionalProperties: false
+      description: Optional device metadata, stored as-is and returned unmodified.
+      properties:
+        brand:
+          type: string
+          maxLength: 128
+        os_version:
+          type: string
+          maxLength: 128
+        device_uuid:
+          type: string
+          maxLength: 128
+        language:
+          type: string
+          maxLength: 35
+          description: BCP-47 language tag.
+        coords:
+          type: object
+          additionalProperties: false
+          required: [lat, lon]
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+            lon:
+              type: number
+              minimum: -180
+              maximum: 180
+
+    RegisterDeviceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+
+    CreateNotificationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        idempotency_key:
+          type: string
+          maxLength: 255
+        include_player_ids:
+          type: array
+          maxItems: 1000
+          items:
+            type: string
+            format: uuid
+          description: Transactional targeting — explicit device ids.
+        include_external_user_ids:
+          type: array
+          maxItems: 1000
+          items:
+            type: string
+          description: Group push — every active device under each subscriber.
+        included_segments:
+          type: array
+          items:
+            type: string
+          description: Accepted for OneSignal request-shape compatibility; currently rejected with 422 (segmentation not yet supported).
+        filters:
+          type: array
+          items:
+            type: object
+          description: Accepted for OneSignal request-shape compatibility; currently rejected with 422 (segmentation not yet supported).
+        title:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+          maxLength: 1000
+        data:
+          type: object
+          description: Arbitrary JSON payload, capped at 4096 bytes serialized.
+
+    CreateNotificationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: pending
+
+    NotificationStatusResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        total_recipients:
+          type: integer
+          format: int32
+        counts:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+          description: Recipient count per status (queued/sending/sent/delivered/failed).
+
+    Recipient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        provider_type:
+          type: string
+          enum: [expo, fcm, apns, hms]
+        status:
+          type: string
+          enum: [queued, sending, sent, delivered, failed]
+        provider_message_id:
+          type: string
+          nullable: true
+        error_code:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        attempt_count:
+          type: integer
+          format: int32
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+  responses:
+    ValidationError:
+      description: The request failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing, malformed, or revoked API key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: The API key's scope doesn't permit this operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: No resource with that id in this project.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Per-key or per-project rate limit exceeded. Retry-After header indicates the wait.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

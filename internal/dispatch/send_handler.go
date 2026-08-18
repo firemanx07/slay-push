@@ -41,13 +41,13 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 	if err != nil {
 		h.failRecipient(ctx, payload.RecipientID, "no_credential", err.Error())
 		// Not retryable: skip asynq's retry/backoff.
-		return fmt.Errorf("%w: no active %s credential for project: %v", asynq.SkipRetry, payload.ProviderType, err)
+		return fmt.Errorf("%w: no active %s credential for project: %w", asynq.SkipRetry, payload.ProviderType, err)
 	}
 
 	cred, err := h.Crypto.Open(credRow.WrappedDek, credRow.Credential)
 	if err != nil {
 		h.failRecipient(ctx, payload.RecipientID, "credential_decrypt_failed", err.Error())
-		return fmt.Errorf("%w: decrypt %s credential: %v", asynq.SkipRetry, payload.ProviderType, err)
+		return fmt.Errorf("%w: decrypt %s credential: %w", asynq.SkipRetry, payload.ProviderType, err)
 	}
 
 	adapter, ok := provider.Get(payload.ProviderType)

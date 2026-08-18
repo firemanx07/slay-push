@@ -2,6 +2,7 @@ package platform
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"sync"
@@ -35,8 +36,7 @@ func newSeqWriter(seqURL string) *seqWriter {
 func (w *seqWriter) Write(p []byte) (int, error) {
 	clef, err := toCLEF(p)
 	if err != nil {
-		// Never let a malformed line take down logging; drop it.
-		return len(p), nil
+		return len(p), nil //nolint:nilerr // drop malformed lines, never propagate
 	}
 
 	w.mu.Lock()
@@ -70,8 +70,13 @@ func (w *seqWriter) flush() {
 	w.batch.Reset()
 	w.mu.Unlock()
 
-	// Best-effort: a Seq hiccup must never affect application behavior.
-	resp, err := w.client.Post(w.url, "application/vnd.serilog.clef", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, w.url, bytes.NewReader(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/vnd.serilog.clef")
+
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return
 	}

@@ -10,6 +10,7 @@ import (
 	"strconv"
 )
 
+// Config holds process configuration loaded from environment variables.
 type Config struct {
 	HTTPAddr            string
 	DatabaseURL         string
@@ -21,6 +22,8 @@ type Config struct {
 	DefaultRateLimitRPS int    // per API key; per-project ceiling is 5x this
 }
 
+// Load reads configuration from environment variables, applying defaults
+// for anything unset.
 func Load() Config {
 	return Config{
 		HTTPAddr:            getEnv("APP_HTTP_ADDR", ":8080"),
@@ -50,6 +53,7 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+// Validate reports an error if the configuration is internally inconsistent.
 func (c Config) Validate() error {
 	if c.LogFormat != "json" && c.LogFormat != "seq" {
 		return fmt.Errorf("LOG_FORMAT must be %q or %q, got %q", "json", "seq", c.LogFormat)

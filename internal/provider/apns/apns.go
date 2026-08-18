@@ -48,6 +48,7 @@ type adapter struct {
 	clients map[[32]byte]*cachedClient // keyed by sha256(credential bytes)
 }
 
+// New returns an APNs provider.Adapter.
 func New() provider.Adapter {
 	return &adapter{clients: make(map[[32]byte]*cachedClient)}
 }

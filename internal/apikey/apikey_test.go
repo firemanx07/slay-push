@@ -34,7 +34,9 @@ func TestHash_Deterministic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if Hash(raw) != Hash(raw) {
+	first := Hash(raw)
+	second := Hash(raw)
+	if first != second {
 		t.Error("Hash should be deterministic for the same input")
 	}
 	if Hash(raw) == Hash(raw+"x") {

@@ -31,7 +31,7 @@ func TestSend_Success(t *testing.T) {
 	defer server.Close()
 
 	a := newTestAdapter(server)
-	result, err := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{
+	result, err := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{ //nolint:gosec // fake test token
 		Token: "ExponentPushToken[abc]", Title: "Hi", Body: "there",
 	})
 	if err != nil {

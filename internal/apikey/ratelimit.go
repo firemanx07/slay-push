@@ -19,6 +19,8 @@ type RateLimiter struct {
 	logger     zerolog.Logger
 }
 
+// NewRateLimiter builds a RateLimiter with a per-key ceiling of rps and a
+// per-project ceiling of 5x rps.
 func NewRateLimiter(rdb *redis.Client, rps int, logger zerolog.Logger) *RateLimiter {
 	return &RateLimiter{
 		limiter:    redis_rate.NewLimiter(rdb),

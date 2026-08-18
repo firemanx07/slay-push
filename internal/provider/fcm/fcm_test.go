@@ -182,7 +182,7 @@ func TestTokenSourceCaching(t *testing.T) {
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		tokenRequests++
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"access_token":"tok-%d","token_type":"Bearer","expires_in":3600}`, tokenRequests)))
+		_, _ = fmt.Fprintf(w, `{"access_token":"tok-%d","token_type":"Bearer","expires_in":3600}`, tokenRequests)
 	})
 	mux.HandleFunc("/v1/projects/test-project/messages:send", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

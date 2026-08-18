@@ -12,6 +12,7 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
+// Server holds the dependencies the public JSON API's handlers need.
 type Server struct {
 	DB          *postgres.Queries
 	Dispatch    *dispatch.Handlers
@@ -19,6 +20,7 @@ type Server struct {
 	Logger      zerolog.Logger
 }
 
+// NewRouter builds the public JSON API's chi.Router.
 func NewRouter(s *Server) http.Handler {
 	r := chi.NewRouter()
 

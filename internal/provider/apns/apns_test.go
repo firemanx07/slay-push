@@ -38,7 +38,7 @@ func newTestCredential(t *testing.T) []byte {
 		BundleID:   "com.example.app",
 		PrivateKey: string(pemKey),
 	}
-	b, err := json.Marshal(cred)
+	b, err := json.Marshal(cred) //nolint:gosec // test fixture, not a real credential
 	if err != nil {
 		t.Fatalf("marshal credential: %v", err)
 	}
@@ -65,7 +65,7 @@ func newTestAdapter(t *testing.T, server *httptest.Server, credential []byte) *a
 	cc.client.Host = server.URL
 	cc.client.HTTPClient = &http.Client{
 		Transport: &http2.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test server uses a self-signed cert
 		},
 	}
 	return a

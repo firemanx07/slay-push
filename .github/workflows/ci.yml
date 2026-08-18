@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 jobs:
-  lint-test:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,10 +23,34 @@ jobs:
           diff <(gofmt -l .) <(echo -n "")
       - run: go test ./...
 
-  build-image:
-    needs: lint-test
+  lint:
     runs-on: ubuntu-latest
-    # Only builds on tag pushes; PRs and main-branch pushes just run lint-test above.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod
+
+  build-image:
+    needs: [build-test, lint, vulncheck]
+    runs-on: ubuntu-latest
+    # Only builds on tag pushes; PRs and main-branch pushes just run the jobs above.
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: read

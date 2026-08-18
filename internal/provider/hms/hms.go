@@ -41,8 +41,9 @@ type adapter struct {
 	tokens map[[32]byte]*cachedToken // keyed by sha256(credential bytes)
 }
 
+// New returns an HMS provider.Adapter.
 func New() provider.Adapter {
-	return &adapter{
+	return &adapter{ //nolint:gosec // tokenURL/baseURL below are public endpoint constants, not credentials
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 		tokenURL:   "https://oauth-login.cloud.huawei.com/oauth2/v3/token",
 		baseURL:    "https://push-api.cloud.huawei.com",
@@ -80,7 +81,7 @@ func (a *adapter) accessTokenFor(ctx context.Context, credential json.RawMessage
 	if err != nil {
 		return "", fmt.Errorf("hms: fetch oauth2 token: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("hms: oauth2 token request failed: %d %s", resp.StatusCode, string(body))
@@ -181,7 +182,7 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 	if err != nil {
 		return provider.SendResult{Status: provider.StatusTransientError}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == http.StatusTooManyRequests {

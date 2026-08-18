@@ -6,6 +6,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Pre-Phase-4 best-practices audit: `.golangci.yml` (moderate curated set — errcheck, govet,
+  staticcheck, gosec, revive, errorlint, contextcheck, and more), `govulncheck` run locally and
+  wired into CI as its own job, doc comments on every exported identifier, an `api/openapi.yaml`
+  contract for the public JSON API, `.github/dependabot.yml` (gomod/github-actions/docker,
+  weekly), and community health files (`CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
+  issue templates, PR template). CI's single `lint-test` job split into independent
+  `build-test`/`lint`/`vulncheck` jobs, all gating the release image build.
+
+### Changed
+- `runMigrate` now uses golang-migrate's `pgx/v5` database driver instead of `database/postgres`
+  (`lib/pq`), removing `lib/pq` from the dependency tree entirely — `govulncheck` flagged several
+  unfixed `lib/pq` advisories that this sidesteps rather than waiting on upstream.
+
 - Phase 3: multi-tenancy and machine auth. Envelope-encrypted
   `provider_credentials` (per-credential AES-256-GCM DEK wrapped by
   `APP_MASTER_KEY`), API keys (`sp_live_` prefix, `read`/`send` scopes,

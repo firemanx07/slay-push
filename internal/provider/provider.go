@@ -14,6 +14,7 @@ import (
 // Status is the outcome of a single send attempt.
 type Status int
 
+// The possible outcomes of a single send attempt.
 const (
 	StatusUnknown Status = iota // zero value
 	StatusSent
@@ -22,6 +23,7 @@ const (
 	StatusThrottled      // retryable, honors RetryAfter when provided
 )
 
+// SendRequest is the provider-agnostic input to Adapter.Send.
 type SendRequest struct {
 	Token string
 	Title string
@@ -29,6 +31,7 @@ type SendRequest struct {
 	Data  map[string]any
 }
 
+// SendResult is the provider-agnostic outcome of Adapter.Send.
 type SendResult struct {
 	ProviderMessageID string
 	Status            Status

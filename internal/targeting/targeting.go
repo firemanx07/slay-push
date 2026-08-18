@@ -19,6 +19,8 @@ type Spec struct {
 	ExternalUserIDs []string
 }
 
+// ErrNoTargetsSpecified is returned when a Spec has neither DeviceIDs nor
+// ExternalUserIDs set.
 var ErrNoTargetsSpecified = errors.New("targeting: no targets specified")
 
 // Resolver is implemented once per targeting mode.
@@ -42,6 +44,7 @@ type ByExplicitTargets struct {
 	DB DeviceLookup
 }
 
+// Resolve implements Resolver for ByExplicitTargets.
 func (r *ByExplicitTargets) Resolve(ctx context.Context, projectID uuid.UUID, spec Spec) ([]uuid.UUID, error) {
 	if len(spec.DeviceIDs) == 0 {
 		return nil, ErrNoTargetsSpecified
@@ -69,6 +72,7 @@ type ByGroup struct {
 	DB GroupLookup
 }
 
+// Resolve implements Resolver for ByGroup.
 func (r *ByGroup) Resolve(ctx context.Context, projectID uuid.UUID, spec Spec) ([]uuid.UUID, error) {
 	if len(spec.ExternalUserIDs) == 0 {
 		return nil, ErrNoTargetsSpecified
@@ -103,6 +107,7 @@ type lookup interface {
 	GroupLookup
 }
 
+// NewRegistry builds a Registry backed by db.
 func NewRegistry(db lookup) *Registry {
 	return &Registry{
 		explicit: &ByExplicitTargets{DB: db},
@@ -110,6 +115,8 @@ func NewRegistry(db lookup) *Registry {
 	}
 }
 
+// Resolve implements Resolver for Registry, dispatching to the strategy
+// matching whichever field on spec is populated.
 func (r *Registry) Resolve(ctx context.Context, projectID uuid.UUID, spec Spec) ([]uuid.UUID, error) {
 	switch {
 	case len(spec.DeviceIDs) > 0:

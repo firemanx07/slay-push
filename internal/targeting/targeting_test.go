@@ -2,6 +2,7 @@ package targeting
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -59,7 +60,7 @@ func TestByExplicitTargets_ResolvesKnownDevices(t *testing.T) {
 func TestByExplicitTargets_NoTargets(t *testing.T) {
 	r := &ByExplicitTargets{DB: &fakeLookup{}}
 	_, err := r.Resolve(context.Background(), uuid.New(), Spec{})
-	if err != ErrNoTargetsSpecified {
+	if !errors.Is(err, ErrNoTargetsSpecified) {
 		t.Errorf("err = %v, want ErrNoTargetsSpecified", err)
 	}
 }
@@ -97,7 +98,7 @@ func TestByGroup_ResolvesAllDevicesUnderExternalIDs(t *testing.T) {
 func TestByGroup_NoTargets(t *testing.T) {
 	r := &ByGroup{DB: &fakeLookup{}}
 	_, err := r.Resolve(context.Background(), uuid.New(), Spec{})
-	if err != ErrNoTargetsSpecified {
+	if !errors.Is(err, ErrNoTargetsSpecified) {
 		t.Errorf("err = %v, want ErrNoTargetsSpecified", err)
 	}
 }
@@ -139,7 +140,7 @@ func TestRegistry_SelectsByGroup(t *testing.T) {
 func TestRegistry_NoSpecPopulated(t *testing.T) {
 	reg := NewRegistry(&fakeLookup{})
 	_, err := reg.Resolve(context.Background(), uuid.New(), Spec{})
-	if err != ErrNoTargetsSpecified {
+	if !errors.Is(err, ErrNoTargetsSpecified) {
 		t.Errorf("err = %v, want ErrNoTargetsSpecified", err)
 	}
 }

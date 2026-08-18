@@ -28,6 +28,7 @@ type adapter struct {
 	baseURL    string // https://exp.host; overridable in tests
 }
 
+// New returns an Expo provider.Adapter.
 func New() provider.Adapter {
 	return &adapter{
 		httpClient: &http.Client{Timeout: 10 * time.Second},
@@ -87,7 +88,7 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 	if err != nil {
 		return provider.SendResult{Status: provider.StatusTransientError}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == http.StatusTooManyRequests {
