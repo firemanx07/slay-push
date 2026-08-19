@@ -1,9 +1,6 @@
--- Initial schema: projects, devices, notifications, notification_recipients,
--- provider_credentials. Every row currently hangs off a single seeded
+-- Initial schema, consolidated (pre-release — no incremental migration
+-- history to preserve). Every row currently hangs off a single seeded
 -- "default" project.
---
--- provider_credentials.credential is plain JSONB. Do not store real
--- production credentials in this table until encryption at rest is added.
 
 create extension if not exists pgcrypto;
 
@@ -15,9 +12,24 @@ create table projects (
     created_at timestamptz not null default now()
 );
 
+-- A subscriber is the grouping/identity concept (one external_id); a
+-- device is one channel-specific delivery endpoint belonging to a
+-- subscriber.
+create table subscribers (
+    id            uuid primary key default gen_random_uuid(),
+    project_id    uuid not null references projects(id),
+    external_id   text not null,
+    status        text not null default 'subscribed' check (status in ('subscribed', 'opted_out')),
+    created_at    timestamptz not null default now(),
+    last_seen_at  timestamptz not null default now(),
+    unique (project_id, external_id),
+    unique (project_id, id)
+);
+
 create table devices (
     id            uuid primary key default gen_random_uuid(),
     project_id    uuid not null references projects(id),
+    subscriber_id uuid,
     token         text not null,
     -- Device kind, distinct from provider_type (which push network to use).
     platform      text not null check (platform in ('ios', 'android', 'web')),
@@ -28,7 +40,8 @@ create table devices (
     metadata      jsonb not null default '{}'::jsonb,
     created_at    timestamptz not null default now(),
     updated_at    timestamptz not null default now(),
-    unique (project_id, token)
+    unique (project_id, token),
+    foreign key (project_id, subscriber_id) references subscribers (project_id, id)
 );
 
 create table notifications (
@@ -71,17 +84,58 @@ create table notification_recipients (
     unique (notification_id, device_id)
 );
 
+-- credential is envelope-encrypted: each row gets its own AES-256-GCM Data
+-- Encryption Key (DEK), which wraps the actual credential; wrapped_dek
+-- stores that DEK, itself wrapped by APP_MASTER_KEY. credential is bytea
+-- (AES-GCM ciphertext is arbitrary binary, not valid JSON/UTF8 text).
 create table provider_credentials (
     id            uuid primary key default gen_random_uuid(),
     project_id    uuid not null references projects(id),
     provider_type text not null check (provider_type in ('expo', 'fcm', 'apns', 'hms')),
     environment   text not null default 'production',
-    credential    jsonb not null,
+    credential    bytea not null,
+    wrapped_dek   bytea not null,
     is_active     boolean not null default true,
     created_at    timestamptz not null default now(),
     updated_at    timestamptz not null default now(),
     unique (project_id, provider_type, environment)
 );
+
+create table api_keys (
+    id            uuid primary key default gen_random_uuid(),
+    project_id    uuid not null references projects(id),
+    name          text not null,
+    key_prefix    text not null,
+    key_hash      text not null unique,
+    scope         text not null check (scope in ('read', 'send')),
+    created_at    timestamptz not null default now(),
+    last_used_at  timestamptz,
+    revoked_at    timestamptz,
+    expires_at    timestamptz
+);
+
+create index api_keys_project_id_idx on api_keys (project_id);
+
+create table users (
+    id            uuid primary key default gen_random_uuid(),
+    email         text not null unique,
+    password_hash text not null,
+    -- Reserved for future RBAC; unenforced in v1 (every user is an admin).
+    role          text not null default 'admin',
+    created_at    timestamptz not null default now()
+);
+
+create table sessions (
+    id            uuid primary key default gen_random_uuid(),
+    user_id       uuid not null references users(id),
+    token_hash    text not null unique,
+    created_at    timestamptz not null default now(),
+    last_used_at  timestamptz,
+    expires_at    timestamptz not null,
+    revoked_at    timestamptz
+);
+
+create index sessions_user_id_idx on sessions (user_id);
 
 -- Seed default project for devices/credentials to attach to.
 insert into projects (id, name, slug)
