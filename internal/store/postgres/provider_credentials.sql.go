@@ -12,7 +12,7 @@ import (
 )
 
 const getActiveProviderCredential = `-- name: GetActiveProviderCredential :one
-select id, project_id, provider_type, environment, credential, is_active, created_at, updated_at, wrapped_dek from provider_credentials
+select id, project_id, provider_type, environment, credential, wrapped_dek, is_active, created_at, updated_at from provider_credentials
 where project_id = $1 and provider_type = $2 and environment = $3 and is_active
 limit 1
 `
@@ -32,10 +32,10 @@ func (q *Queries) GetActiveProviderCredential(ctx context.Context, arg GetActive
 		&i.ProviderType,
 		&i.Environment,
 		&i.Credential,
+		&i.WrappedDek,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.WrappedDek,
 	)
 	return i, err
 }
@@ -95,7 +95,7 @@ on conflict (project_id, provider_type, environment) do update set
     wrapped_dek = excluded.wrapped_dek,
     is_active = true,
     updated_at = now()
-returning id, project_id, provider_type, environment, credential, is_active, created_at, updated_at, wrapped_dek
+returning id, project_id, provider_type, environment, credential, wrapped_dek, is_active, created_at, updated_at
 `
 
 type UpsertProviderCredentialParams struct {
@@ -121,10 +121,10 @@ func (q *Queries) UpsertProviderCredential(ctx context.Context, arg UpsertProvid
 		&i.ProviderType,
 		&i.Environment,
 		&i.Credential,
+		&i.WrappedDek,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.WrappedDek,
 	)
 	return i, err
 }

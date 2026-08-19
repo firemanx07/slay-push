@@ -12,7 +12,7 @@ import (
 )
 
 const getDevicesByIDs = `-- name: GetDevicesByIDs :many
-select id, project_id, token, platform, provider_type, status, metadata, created_at, updated_at, subscriber_id from devices where project_id = $1 and id = any($2::uuid[])
+select id, project_id, subscriber_id, token, platform, provider_type, status, metadata, created_at, updated_at from devices where project_id = $1 and id = any($2::uuid[])
 `
 
 type GetDevicesByIDsParams struct {
@@ -32,6 +32,7 @@ func (q *Queries) GetDevicesByIDs(ctx context.Context, arg GetDevicesByIDsParams
 		if err := rows.Scan(
 			&i.ID,
 			&i.ProjectID,
+			&i.SubscriberID,
 			&i.Token,
 			&i.Platform,
 			&i.ProviderType,
@@ -39,7 +40,6 @@ func (q *Queries) GetDevicesByIDs(ctx context.Context, arg GetDevicesByIDsParams
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.SubscriberID,
 		); err != nil {
 			return nil, err
 		}
@@ -149,7 +149,7 @@ on conflict (project_id, token) do update set
     subscriber_id = coalesce(excluded.subscriber_id, devices.subscriber_id),
     status = 'active',
     updated_at = now()
-returning id, project_id, token, platform, provider_type, status, metadata, created_at, updated_at, subscriber_id
+returning id, project_id, subscriber_id, token, platform, provider_type, status, metadata, created_at, updated_at
 `
 
 type UpsertDeviceParams struct {
@@ -175,6 +175,7 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Dev
 	err := row.Scan(
 		&i.ID,
 		&i.ProjectID,
+		&i.SubscriberID,
 		&i.Token,
 		&i.Platform,
 		&i.ProviderType,
@@ -182,7 +183,6 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Dev
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SubscriberID,
 	)
 	return i, err
 }

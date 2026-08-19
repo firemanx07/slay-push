@@ -14,6 +14,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   that restriction. As a standard, unmodified OSI license, it needs no custom drafting or legal
   review the way the BSL draft did.
 
+### Fixed
+- `devices.subscriber_id` only referenced `subscribers(id)`, so nothing at the database level
+  stopped a device from being linked to a subscriber in a *different* project — the tenant
+  boundary this codebase enforces everywhere else (API keys, provider credentials, rate limits).
+  `subscribers` now carries `unique (project_id, id)`, and `devices` foreign-keys on
+  `(project_id, subscriber_id)` against it instead, so a cross-project link is now rejected by
+  Postgres itself rather than relying on every call site getting it right. The nullable
+  `subscriber_id` (a device with no linked subscriber yet) still works — Postgres's default
+  `MATCH SIMPLE` behavior skips the check when any column of a composite foreign key is null.
+
 ### Added
 - Dashboard styling pass: vendored Pico.css (classless, no build step — same "single vendored
   static asset" convention already used for `htmx.min.js`), a consistent header/nav bar (branding,

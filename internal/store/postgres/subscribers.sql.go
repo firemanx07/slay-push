@@ -12,7 +12,7 @@ import (
 )
 
 const getActiveDevicesBySubscriberExternalIDs = `-- name: GetActiveDevicesBySubscriberExternalIDs :many
-select d.id, d.project_id, d.token, d.platform, d.provider_type, d.status, d.metadata, d.created_at, d.updated_at, d.subscriber_id from devices d
+select d.id, d.project_id, d.subscriber_id, d.token, d.platform, d.provider_type, d.status, d.metadata, d.created_at, d.updated_at from devices d
 join subscribers s on s.id = d.subscriber_id
 where s.project_id = $1
   and s.external_id = any($2::text[])
@@ -39,6 +39,7 @@ func (q *Queries) GetActiveDevicesBySubscriberExternalIDs(ctx context.Context, a
 		if err := rows.Scan(
 			&i.ID,
 			&i.ProjectID,
+			&i.SubscriberID,
 			&i.Token,
 			&i.Platform,
 			&i.ProviderType,
@@ -46,7 +47,6 @@ func (q *Queries) GetActiveDevicesBySubscriberExternalIDs(ctx context.Context, a
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.SubscriberID,
 		); err != nil {
 			return nil, err
 		}

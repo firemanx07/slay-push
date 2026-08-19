@@ -24,6 +24,7 @@ type ApiKey struct {
 type Device struct {
 	ID           pgtype.UUID        `json:"id"`
 	ProjectID    pgtype.UUID        `json:"project_id"`
+	SubscriberID pgtype.UUID        `json:"subscriber_id"`
 	Token        string             `json:"token"`
 	Platform     string             `json:"platform"`
 	ProviderType string             `json:"provider_type"`
@@ -31,7 +32,6 @@ type Device struct {
 	Metadata     []byte             `json:"metadata"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	SubscriberID pgtype.UUID        `json:"subscriber_id"`
 }
 
 type Notification struct {
@@ -77,10 +77,10 @@ type ProviderCredential struct {
 	ProviderType string             `json:"provider_type"`
 	Environment  string             `json:"environment"`
 	Credential   []byte             `json:"credential"`
+	WrappedDek   []byte             `json:"wrapped_dek"`
 	IsActive     bool               `json:"is_active"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	WrappedDek   []byte             `json:"wrapped_dek"`
 }
 
 type Session struct {
