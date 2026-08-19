@@ -17,6 +17,18 @@ select * from devices where project_id = $1 and id = any(sqlc.arg(ids)::uuid[]);
 -- name: MarkDeviceStatus :exec
 update devices set status = $2, updated_at = now() where id = $1;
 
+-- name: MarkStaleDevicesByDeviceUUID :many
+-- Marks stale every other active device under the same subscriber that
+-- shares the given device_uuid, excluding the device row just registered.
+update devices
+set status = 'stale', updated_at = now()
+where project_id = $1
+  and subscriber_id = $2
+  and id != $3
+  and status = 'active'
+  and metadata ->> 'device_uuid' = sqlc.arg(device_uuid)::text
+returning *;
+
 -- name: ListDevicesByProject :many
 -- external_id/status filters are skipped when passed as an empty string.
 select d.id, d.project_id, d.token, d.platform, d.provider_type, d.status,

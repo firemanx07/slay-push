@@ -139,6 +139,62 @@ func (q *Queries) MarkDeviceStatus(ctx context.Context, arg MarkDeviceStatusPara
 	return err
 }
 
+const markStaleDevicesByDeviceUUID = `-- name: MarkStaleDevicesByDeviceUUID :many
+update devices
+set status = 'stale', updated_at = now()
+where project_id = $1
+  and subscriber_id = $2
+  and id != $3
+  and status = 'active'
+  and metadata ->> 'device_uuid' = $4::text
+returning id, project_id, subscriber_id, token, platform, provider_type, status, metadata, created_at, updated_at
+`
+
+type MarkStaleDevicesByDeviceUUIDParams struct {
+	ProjectID    pgtype.UUID `json:"project_id"`
+	SubscriberID pgtype.UUID `json:"subscriber_id"`
+	ID           pgtype.UUID `json:"id"`
+	DeviceUuid   string      `json:"device_uuid"`
+}
+
+// Marks stale every other active device under the same subscriber that
+// shares the given device_uuid, excluding the device row just registered.
+func (q *Queries) MarkStaleDevicesByDeviceUUID(ctx context.Context, arg MarkStaleDevicesByDeviceUUIDParams) ([]Device, error) {
+	rows, err := q.db.Query(ctx, markStaleDevicesByDeviceUUID,
+		arg.ProjectID,
+		arg.SubscriberID,
+		arg.ID,
+		arg.DeviceUuid,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Device
+	for rows.Next() {
+		var i Device
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.SubscriberID,
+			&i.Token,
+			&i.Platform,
+			&i.ProviderType,
+			&i.Status,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertDevice = `-- name: UpsertDevice :one
 insert into devices (project_id, token, platform, provider_type, metadata, subscriber_id)
 values ($1, $2, $3, $4, $5, $6)

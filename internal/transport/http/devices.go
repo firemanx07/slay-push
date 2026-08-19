@@ -1,12 +1,14 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/firemanx07/slay-push/internal/provider"
@@ -150,7 +152,33 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if subscriberID.Valid && req.Device != nil && req.Device.DeviceUUID != "" {
+		s.supersedeRotatedDevices(r.Context(), projectID, subscriberID, device.ID, req.Device.DeviceUUID)
+	}
+
 	writeJSON(w, http.StatusOK, registerDeviceResponse{ID: postgres.UUIDTo(device.ID).String()})
+}
+
+// supersedeRotatedDevices marks other active devices under the same
+// subscriber sharing deviceUUID as stale: a matching device_uuid on a
+// different token means the same physical device rotated its push token
+// (e.g. an FCM token refresh), so the prior token is superseded rather than
+// left active to receive pushes it can no longer deliver. Best-effort: a
+// failure here doesn't fail the registration that already succeeded.
+func (s *Server) supersedeRotatedDevices(ctx context.Context, projectID uuid.UUID, subscriberID, currentDeviceID pgtype.UUID, deviceUUID string) {
+	superseded, err := s.DB.MarkStaleDevicesByDeviceUUID(ctx, postgres.MarkStaleDevicesByDeviceUUIDParams{
+		ProjectID:    postgres.UUIDFrom(projectID),
+		SubscriberID: subscriberID,
+		ID:           currentDeviceID,
+		DeviceUuid:   deviceUUID,
+	})
+	if err != nil {
+		s.Logger.Warn().Err(err).Msg("failed to supersede rotated devices")
+		return
+	}
+	if len(superseded) > 0 {
+		s.Logger.Info().Int("count", len(superseded)).Msg("superseded rotated device token(s)")
+	}
 }
 
 // buildDeviceMetadata merges the caller-supplied device info with the
