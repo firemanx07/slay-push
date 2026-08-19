@@ -1,24 +1,28 @@
 package templates
 
-templ APIKeysTab(project Project, keys []APIKey, revealedKey string, message string) {
-	@Layout(project.Name + " · API Keys") {
-		<main>
-			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
-			@ProjectNav(project.ID)
-			<h2>API Keys</h2>
-			if revealedKey != "" {
-				<p class="error">Save this key now — it cannot be shown again:</p>
-				<pre>{ revealedKey }</pre>
-			}
-			if message != "" {
-				<p>{ message }</p>
-			}
-			<table>
+templ APIKeysTab(userEmail string, project Project, keys []APIKey, revealedKey string, message string) {
+	@Layout(project.Name + " · API Keys", userEmail) {
+		<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+		@ProjectNav(project.ID, "api-keys")
+		<h1>API Keys</h1>
+		if revealedKey != "" {
+			<article style="border-left: 4px solid var(--pico-del-color);">
+				<p><strong>Save this key now — it cannot be shown again:</strong></p>
+				<pre><code>{ revealedKey }</code></pre>
+			</article>
+		}
+		if message != "" {
+			<p>{ message }</p>
+		}
+		<table>
+			<thead>
 				<tr><th>Name</th><th>Prefix</th><th>Scope</th><th>Created</th><th>Status</th><th></th></tr>
+			</thead>
+			<tbody>
 				for _, k := range keys {
 					<tr>
 						<td>{ k.Name }</td>
-						<td>{ k.KeyPrefix }</td>
+						<td><code>{ k.KeyPrefix }</code></td>
 						<td>{ k.Scope }</td>
 						<td>{ k.CreatedAt.Format("2006-01-02 15:04") }</td>
 						if k.Revoked {
@@ -28,16 +32,18 @@ templ APIKeysTab(project Project, keys []APIKey, revealedKey string, message str
 						}
 						<td>
 							if !k.Revoked {
-								<form method="post" action={ templ.URL("/projects/" + project.ID + "/api-keys/" + k.ID + "/revoke") }>
-									<button type="submit">Revoke</button>
+								<form method="post" action={ templ.URL("/projects/" + project.ID + "/api-keys/" + k.ID + "/revoke") } class="inline-form">
+									<button type="submit" class="outline contrast">Revoke</button>
 								</form>
 							}
 						</td>
 					</tr>
 				}
-			</table>
+			</tbody>
+		</table>
 
-			<h3>Create API key</h3>
+		<article>
+			<header>Create API key</header>
 			<form method="post" action={ templ.URL("/projects/" + project.ID + "/api-keys") }>
 				<label>Name <input type="text" name="name" required/></label>
 				<label>
@@ -49,6 +55,6 @@ templ APIKeysTab(project Project, keys []APIKey, revealedKey string, message str
 				</label>
 				<button type="submit">Create</button>
 			</form>
-		</main>
+		</article>
 	}
 }

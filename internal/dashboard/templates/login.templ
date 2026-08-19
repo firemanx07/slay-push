@@ -1,9 +1,12 @@
 package templates
 
 templ Login(errorMessage string) {
-	@Layout("Log in") {
-		<main class="auth-page">
-			<h1>slay-push</h1>
+	@Layout("Log in", "") {
+		<article class="auth-page">
+			<hgroup>
+				<h1>slay-push</h1>
+				<p>Log in to the dashboard</p>
+			</hgroup>
 			if errorMessage != "" {
 				<p class="error">{ errorMessage }</p>
 			}
@@ -18,6 +21,6 @@ templ Login(errorMessage string) {
 				</label>
 				<button type="submit">Log in</button>
 			</form>
-		</main>
+		</article>
 	}
 }

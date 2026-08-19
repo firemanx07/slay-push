@@ -1,10 +1,12 @@
 package templates
 
 templ Setup(errorMessage string) {
-	@Layout("Setup") {
-		<main class="auth-page">
-			<h1>Welcome to slay-push</h1>
-			<p>Create the first admin account to get started.</p>
+	@Layout("Setup", "") {
+		<article class="auth-page">
+			<hgroup>
+				<h1>Welcome to slay-push</h1>
+				<p>Create the first admin account to get started.</p>
+			</hgroup>
 			if errorMessage != "" {
 				<p class="error">{ errorMessage }</p>
 			}
@@ -19,6 +21,6 @@ templ Setup(errorMessage string) {
 				</label>
 				<button type="submit">Create admin account</button>
 			</form>
-		</main>
+		</article>
 	}
 }

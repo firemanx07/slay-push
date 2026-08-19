@@ -2,14 +2,16 @@ package templates
 
 import "strconv"
 
-templ NotificationsTab(project Project, notifications []Notification) {
-	@Layout(project.Name + " · Notifications") {
-		<main>
-			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
-			@ProjectNav(project.ID)
-			<h2>Send History</h2>
-			<table>
+templ NotificationsTab(userEmail string, project Project, notifications []Notification) {
+	@Layout(project.Name + " · Notifications", userEmail) {
+		<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+		@ProjectNav(project.ID, "notifications")
+		<h1>Send History</h1>
+		<table>
+			<thead>
 				<tr><th>Status</th><th>Recipients</th><th>Created</th><th></th></tr>
+			</thead>
+			<tbody>
 				for _, n := range notifications {
 					<tr>
 						<td>{ n.Status }</td>
@@ -18,7 +20,7 @@ templ NotificationsTab(project Project, notifications []Notification) {
 						<td><a href={ templ.URL("/notifications/" + n.ID) }>Detail</a></td>
 					</tr>
 				}
-			</table>
-		</main>
+			</tbody>
+		</table>
 	}
 }
