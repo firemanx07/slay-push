@@ -101,8 +101,8 @@ optional hosted/cloud offering.
 
 ## License
 
-[Apache License 2.0](LICENSE) — permissive open source, no restrictions on hosting, forking, or
-commercial use.
+[Apache License 2.0](LICENSE) — permissive open source. Hosting, forking, and commercial use
+are all permitted, subject to the license's terms (e.g. preserving copyright/license notices).
 
 ## Contributing
 
