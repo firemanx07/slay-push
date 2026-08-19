@@ -11,7 +11,7 @@ templ projectTab(href, label, active, current string) {
 // ProjectNav renders the project detail tab bar. active is one of
 // "overview", "providers", "api-keys", "devices", "notifications".
 templ ProjectNav(projectID string, active string) {
-	<nav class="tabs">
+	<nav class="tabs" aria-label="Project">
 		<ul>
 			<li>@projectTab("/projects/"+projectID, "Overview", active, "overview")</li>
 			<li>@projectTab("/projects/"+projectID+"/providers", "Providers", active, "providers")</li>
