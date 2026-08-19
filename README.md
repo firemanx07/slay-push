@@ -18,22 +18,34 @@ integration code.
 
 ## Status
 
-Early scaffolding — see [CHANGELOG.md](CHANGELOG.md) and the phased roadmap below. Not yet
-ready for production use.
+MVP-complete: self-hostable, multi-tenant, all four providers, dashboard-managed credentials
+and API keys. See [CHANGELOG.md](CHANGELOG.md) and the phased roadmap below — the hardening
+pass (integration tests, load testing, provider setup docs) is the current focus; not yet
+recommended for production use until that lands.
 
 ## Architecture
 
-```
-client backend --(API key)--> app:serve-all --> enqueue --> Redis --> worker --> FCM/APNs/HMS/Expo
-                                  |                                        |
-                                  +--------------- Postgres <--------------+
-                                  (projects, devices, notifications, delivery receipts,
-                                   users, sessions, api_keys, auth_config, provider_credentials)
-operator browser --(session)--> app:serve-all (htmx dashboard)
+```mermaid
+graph LR
+    client["Client backend"] -->|"API key"| api["app: serve-api"]
+    browser["Operator browser"] -->|"session"| dash["app: serve-dashboard"]
+
+    api -->|"enqueue fanout"| redis[("Redis")]
+    redis --> worker["worker"]
+    worker --> providers["Expo / FCM / APNs / HMS"]
+
+    api --> pg[("Postgres")]
+    dash --> pg
+    worker --> pg
 ```
 
-One Go codebase/image, three run modes selected by the container's `command:`:
-`serve-all` (public API + dashboard), `worker` (asynq queue consumer, calls provider adapters),
+Postgres holds `projects`, `subscribers`, `devices`, `notifications`, `notification_recipients`,
+`provider_credentials`, `api_keys`, `users`, and `sessions`.
+
+One Go codebase/image, five run modes selected by the container's `command:`:
+`serve-all` (public API + dashboard on one listener — the default), `serve-api`/
+`serve-dashboard` (the same two split across separate deployments, for stricter network
+isolation), `worker` (asynq queue consumer: resolves targeting, calls provider adapters),
 `migrate` (one-shot schema migration).
 
 ## Quickstart
@@ -59,14 +71,16 @@ to stdout, so it plugs into whatever log stack you already run (Loki, ELK, Datad
 ## Configuration
 
 Only what's needed before the database is reachable lives in env vars (see `.env.example`).
-Everything else — auth mode (local/OIDC), provider credentials, API keys, rate-limit overrides —
-is configured from the dashboard after first-run setup and stored in Postgres.
+Provider credentials and API keys are configured from the dashboard after first-run setup and
+stored in Postgres. (Auth mode is local-only for now — no OIDC yet — and rate limits are a
+single global setting; both are on the roadmap below, not dashboard-configurable today.)
 
 | Variable | Default | Notes |
 |---|---|---|
 | `POSTGRES_PASSWORD` | `pushdispatch` (dev) | set a real password before exposing this beyond localhost |
 | `APP_PORT` | `8080` | host-side port for the dashboard/API |
 | `APP_MASTER_KEY` | *(none)* | AES-256-GCM key encrypting provider credentials at rest; **losing it makes stored credentials unrecoverable** — there's no external KMS in this design |
+| `APP_COOKIE_SECURE` | `true` | marks the dashboard session cookie HTTPS-only; set to `false` only for local plain-HTTP dev |
 | `LOG_FORMAT` | `json` | `seq` only meaningful with the dev compose overlay |
 | `LOG_LEVEL` | `info` | |
 
@@ -74,12 +88,12 @@ is configured from the dashboard after first-run setup and stored in Postgres.
 
 Phased MVP plan (each phase independently runnable/testable via `docker compose up`):
 
-0. Repo & project scaffolding *(current)*
-1. Core data model + single-provider (FCM) dispatch
-2. Multi-provider (Expo/APNs/HMS) + subscriber/device registry + group push
-3. Multi-tenancy + API keys
-4. Dashboard + local auth (MVP-complete point)
-5. Hardening pass (integration tests, load test, docs)
+- [x] 0. Repo & project scaffolding
+- [x] 1. Core data model + single-provider (FCM) dispatch
+- [x] 2. Multi-provider (Expo/APNs/HMS) + subscriber/device registry + group push
+- [x] 3. Multi-tenancy + API keys
+- [x] 4. Dashboard + local auth (MVP-complete point)
+- [ ] 5. Hardening pass (integration tests, load test, per-provider outbound rate limiting, docs) *(current)*
 
 Post-MVP: OIDC login, bulk device import (OneSignal migration), multi-role dashboard RBAC,
 encryption key rotation tooling, and — only once the self-hosted product has real usage — an
@@ -87,12 +101,10 @@ optional hosted/cloud offering.
 
 ## License
 
-Source-available (Business Source License-style — see [LICENSE](LICENSE), currently a draft
-pending legal review). Self-hosting, modifying, and internal use are free; the only restriction
-is reselling this exact code as a competing hosted service without a commercial agreement.
-Converts to Apache-2.0 after the license's change date.
+[Apache License 2.0](LICENSE) — permissive open source, no restrictions on hosting, forking, or
+commercial use.
 
 ## Contributing
 
-Issues and PRs welcome once the MVP phases land. If this project is useful to you, a
+Issues and PRs welcome. If this project is useful to you, a
 [GitHub Sponsors](https://github.com/sponsors/firemanx07) contribution helps keep it maintained.
