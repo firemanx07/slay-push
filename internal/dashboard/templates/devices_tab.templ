@@ -1,12 +1,12 @@
 package templates
 
-templ DevicesTab(project Project, devices []Device, externalID string, status string) {
-	@Layout(project.Name + " · Devices") {
-		<main>
-			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
-			@ProjectNav(project.ID)
-			<h2>Devices</h2>
-			<form method="get" action={ templ.URL("/projects/" + project.ID + "/devices") }>
+templ DevicesTab(userEmail string, project Project, devices []Device, externalID string, status string) {
+	@Layout(project.Name + " · Devices", userEmail) {
+		<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+		@ProjectNav(project.ID, "devices")
+		<h1>Devices</h1>
+		<form method="get" action={ templ.URL("/projects/" + project.ID + "/devices") } role="search">
+			<fieldset role="group">
 				<input type="text" name="external_id" placeholder="external_user_id" value={ externalID }/>
 				<select name="status">
 					<option value="" selected?={ status == "" }>any status</option>
@@ -15,9 +15,13 @@ templ DevicesTab(project Project, devices []Device, externalID string, status st
 					<option value="invalid" selected?={ status == "invalid" }>invalid</option>
 				</select>
 				<button type="submit">Filter</button>
-			</form>
-			<table>
+			</fieldset>
+		</form>
+		<table>
+			<thead>
 				<tr><th>Platform</th><th>Provider</th><th>Status</th><th>Created</th></tr>
+			</thead>
+			<tbody>
 				for _, d := range devices {
 					<tr>
 						<td>{ d.Platform }</td>
@@ -26,7 +30,7 @@ templ DevicesTab(project Project, devices []Device, externalID string, status st
 						<td>{ d.CreatedAt.Format("2006-01-02 15:04") }</td>
 					</tr>
 				}
-			</table>
-		</main>
+			</tbody>
+		</table>
 	}
 }

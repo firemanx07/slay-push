@@ -71,11 +71,18 @@ func (s *Server) handleNotificationsTab(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	views := make([]templates.Notification, 0, len(notifications))
 	for _, n := range notifications {
 		views = append(views, toNotificationView(n))
 	}
-	renderPage(w, r, templates.NotificationsTab(toProjectView(project), views))
+	renderPage(w, r, templates.NotificationsTab(email, toProjectView(project), views))
 }
 
 // notificationRecipients resolves a notification (unscoped by project — the
@@ -115,6 +122,13 @@ func (s *Server) handleNotificationDetail(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	recipientViews := make([]templates.Recipient, 0, len(recipients))
 	for _, rec := range recipients {
 		recipientViews = append(recipientViews, toRecipientView(rec))
@@ -122,7 +136,7 @@ func (s *Server) handleNotificationDetail(w http.ResponseWriter, r *http.Request
 	recipientCounts := toRecipientCounts(counts)
 
 	renderPage(w, r, templates.NotificationDetail(
-		id.String(), n.Status, n.TotalRecipients, recipientCounts, recipientViews,
+		email, id.String(), n.Status, n.TotalRecipients, recipientCounts, recipientViews,
 		recipientCounts.Terminal(n.TotalRecipients),
 	))
 }

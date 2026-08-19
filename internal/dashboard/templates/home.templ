@@ -1,20 +1,18 @@
 package templates
 
 templ Home(userEmail string, projects []Project) {
-	@Layout("Dashboard") {
-		<main>
-			<h1>slay-push dashboard</h1>
-			<p>Logged in as { userEmail }.</p>
-			<h2>Projects</h2>
-			<p><a href="/projects">Manage projects &rarr;</a></p>
+	@Layout("Dashboard", userEmail) {
+		<h1>Dashboard</h1>
+		<article>
+			<header>
+				<strong>Projects</strong>
+				<a href="/projects" role="button" class="outline" style="float:right;">Manage projects &rarr;</a>
+			</header>
 			<ul>
 				for _, p := range projects {
-					<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> ({ p.Slug })</li>
+					<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> <small>({ p.Slug })</small></li>
 				}
 			</ul>
-			<form method="post" action="/logout">
-				<button type="submit">Log out</button>
-			</form>
-		</main>
+		</article>
 	}
 }

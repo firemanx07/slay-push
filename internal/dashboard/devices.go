@@ -48,9 +48,16 @@ func (s *Server) handleDevicesTab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	views := make([]templates.Device, 0, len(devices))
 	for _, d := range devices {
 		views = append(views, toDeviceView(d))
 	}
-	renderPage(w, r, templates.DevicesTab(toProjectView(project), views, externalID, status))
+	renderPage(w, r, templates.DevicesTab(email, toProjectView(project), views, externalID, status))
 }

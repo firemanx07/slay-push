@@ -1,35 +1,23 @@
-:root {
-  color-scheme: light dark;
+.auth-page {
+  max-width: 420px;
+  margin: 3rem auto 0;
 }
 
-body {
-  font-family: system-ui, sans-serif;
-  max-width: 480px;
-  margin: 4rem auto;
-  padding: 0 1rem;
-}
-
-.auth-page h1 {
-  margin-bottom: 0.5rem;
-}
-
-form label {
-  display: block;
-  margin-bottom: 1rem;
-}
-
-form input {
-  display: block;
-  width: 100%;
-  padding: 0.5rem;
-  margin-top: 0.25rem;
-  box-sizing: border-box;
-}
-
-button {
-  padding: 0.5rem 1rem;
+.inline-form {
+  display: inline;
+  margin: 0;
 }
 
 .error {
-  color: #c0392b;
+  color: var(--pico-del-color);
+}
+
+.tabs {
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.tabs a[aria-current="page"] {
+  font-weight: bold;
 }

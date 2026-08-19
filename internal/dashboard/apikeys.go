@@ -24,6 +24,13 @@ func toAPIKeyView(k postgres.ApiKey) templates.APIKey {
 }
 
 func (s *Server) renderAPIKeysTab(w http.ResponseWriter, r *http.Request, project postgres.Project, revealedKey, message string) {
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	keys, err := s.DB.ListAPIKeysByProject(r.Context(), project.ID)
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("failed to list api keys")
@@ -35,7 +42,7 @@ func (s *Server) renderAPIKeysTab(w http.ResponseWriter, r *http.Request, projec
 	for _, k := range keys {
 		views = append(views, toAPIKeyView(k))
 	}
-	renderPage(w, r, templates.APIKeysTab(toProjectView(project), views, revealedKey, message))
+	renderPage(w, r, templates.APIKeysTab(email, toProjectView(project), views, revealedKey, message))
 }
 
 func (s *Server) handleAPIKeysTab(w http.ResponseWriter, r *http.Request) {

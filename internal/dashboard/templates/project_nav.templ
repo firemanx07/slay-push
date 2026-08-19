@@ -1,11 +1,23 @@
 package templates
 
-templ ProjectNav(projectID string) {
-	<nav>
-		<a href={ templ.URL("/projects/" + projectID) }>Overview</a> ·
-		<a href={ templ.URL("/projects/" + projectID + "/providers") }>Providers</a> ·
-		<a href={ templ.URL("/projects/" + projectID + "/api-keys") }>API Keys</a> ·
-		<a href={ templ.URL("/projects/" + projectID + "/devices") }>Devices</a> ·
-		<a href={ templ.URL("/projects/" + projectID + "/notifications") }>Notifications</a>
+templ projectTab(href, label, active, current string) {
+	if active == current {
+		<a href={ templ.URL(href) } aria-current="page">{ label }</a>
+	} else {
+		<a href={ templ.URL(href) }>{ label }</a>
+	}
+}
+
+// ProjectNav renders the project detail tab bar. active is one of
+// "overview", "providers", "api-keys", "devices", "notifications".
+templ ProjectNav(projectID string, active string) {
+	<nav class="tabs">
+		<ul>
+			<li>@projectTab("/projects/"+projectID, "Overview", active, "overview")</li>
+			<li>@projectTab("/projects/"+projectID+"/providers", "Providers", active, "providers")</li>
+			<li>@projectTab("/projects/"+projectID+"/api-keys", "API Keys", active, "api-keys")</li>
+			<li>@projectTab("/projects/"+projectID+"/devices", "Devices", active, "devices")</li>
+			<li>@projectTab("/projects/"+projectID+"/notifications", "Notifications", active, "notifications")</li>
+		</ul>
 	</nav>
 }

@@ -6,6 +6,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Dashboard styling pass: vendored Pico.css (classless, no build step — same "single vendored
+  static asset" convention already used for `htmx.min.js`), a consistent header/nav bar (branding,
+  logged-in user, logout) on every authenticated page, and a real tab bar with an active-tab
+  indicator on project detail pages.
 - Phase 4b: dashboard content pages. Project list/detail (create + overview), a Providers tab
   (add/update encrypted credentials, "test credentials" via a new `provider.CredentialTester`
   optional interface implemented by fcm/hms/apns — expo falls back to a JSON-shape check), an

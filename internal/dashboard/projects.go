@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -26,6 +27,20 @@ func (s *Server) visibleProject(ctx context.Context, id uuid.UUID) (postgres.Pro
 	return s.DB.GetProjectByID(ctx, postgres.UUIDFrom(id))
 }
 
+// currentUserEmail resolves the authenticated dashboard user's email, for
+// display in the page header. Requires requireSession to have already run.
+func (s *Server) currentUserEmail(r *http.Request) (string, error) {
+	userID, ok := userIDFromContext(r.Context())
+	if !ok {
+		return "", errors.New("no authenticated user in request context")
+	}
+	user, err := s.DB.GetUserByID(r.Context(), postgres.UUIDFrom(userID))
+	if err != nil {
+		return "", err
+	}
+	return user.Email, nil
+}
+
 func toProjectView(p postgres.Project) templates.Project {
 	return templates.Project{
 		ID:        postgres.UUIDTo(p.ID).String(),
@@ -42,7 +57,13 @@ func projectIDFromRoute(r *http.Request) (uuid.UUID, bool) {
 	return id, err == nil
 }
 
-func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
+func (s *Server) renderProjectsList(w http.ResponseWriter, r *http.Request, message string) {
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	projects, err := s.visibleProjects(r.Context())
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("failed to list projects")
@@ -54,33 +75,27 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	for _, p := range projects {
 		views = append(views, toProjectView(p))
 	}
-	renderPage(w, r, templates.ProjectsList(views, ""))
+	renderPage(w, r, templates.ProjectsList(email, views, message))
+}
+
+func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
+	s.renderProjectsList(w, r, "")
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		s.renderProjectsList(w, r, "invalid form submission")
 		return
 	}
 	name := r.FormValue("name")
 	slug := r.FormValue("slug")
 	if name == "" || slug == "" {
-		projects, _ := s.visibleProjects(r.Context())
-		views := make([]templates.Project, 0, len(projects))
-		for _, p := range projects {
-			views = append(views, toProjectView(p))
-		}
-		renderPage(w, r, templates.ProjectsList(views, "name and slug are required"))
+		s.renderProjectsList(w, r, "name and slug are required")
 		return
 	}
 
 	if _, err := s.DB.CreateProject(r.Context(), postgres.CreateProjectParams{Name: name, Slug: slug}); err != nil {
-		projects, _ := s.visibleProjects(r.Context())
-		views := make([]templates.Project, 0, len(projects))
-		for _, p := range projects {
-			views = append(views, toProjectView(p))
-		}
-		renderPage(w, r, templates.ProjectsList(views, "failed to create project (slug may already be in use)"))
+		s.renderProjectsList(w, r, "failed to create project (slug may already be in use)")
 		return
 	}
 
@@ -100,5 +115,12 @@ func (s *Server) handleProjectOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderPage(w, r, templates.ProjectOverview(toProjectView(project)))
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	renderPage(w, r, templates.ProjectOverview(email, toProjectView(project)))
 }

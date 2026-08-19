@@ -3,17 +3,21 @@ package templates
 import "strconv"
 
 templ recipientRows(recipients []Recipient) {
-	<tr><th>Device</th><th>Provider</th><th>Status</th><th>Message ID</th><th>Error</th><th>Attempts</th></tr>
-	for _, r := range recipients {
-		<tr>
-			<td>{ r.DeviceID }</td>
-			<td>{ r.ProviderType }</td>
-			<td>{ r.Status }</td>
-			<td>{ r.ProviderMessageID }</td>
-			<td>{ r.ErrorMessage }</td>
-			<td>{ strconv.Itoa(int(r.AttemptCount)) }</td>
-		</tr>
-	}
+	<thead>
+		<tr><th>Device</th><th>Provider</th><th>Status</th><th>Message ID</th><th>Error</th><th>Attempts</th></tr>
+	</thead>
+	<tbody>
+		for _, r := range recipients {
+			<tr>
+				<td>{ r.DeviceID }</td>
+				<td>{ r.ProviderType }</td>
+				<td>{ r.Status }</td>
+				<td>{ r.ProviderMessageID }</td>
+				<td>{ r.ErrorMessage }</td>
+				<td>{ strconv.Itoa(int(r.AttemptCount)) }</td>
+			</tr>
+		}
+	</tbody>
 }
 
 // RecipientsFragment renders the recipients table, still polling via htmx
@@ -31,20 +35,18 @@ templ RecipientsFragment(notificationID string, recipients []Recipient, terminal
 	}
 }
 
-templ NotificationDetail(notificationID string, status string, total int32, counts RecipientCounts, recipients []Recipient, terminal bool) {
-	@Layout("Notification " + notificationID) {
-		<main>
-			<p><a href="/">&larr; Dashboard</a></p>
-			<h1>Notification { notificationID }</h1>
-			<p>Status: { status } · Total: { strconv.Itoa(int(total)) }</p>
-			<p>
-				Queued { strconv.FormatInt(counts.Queued, 10) } ·
-				Sending { strconv.FormatInt(counts.Sending, 10) } ·
-				Sent { strconv.FormatInt(counts.Sent, 10) } ·
-				Delivered { strconv.FormatInt(counts.Delivered, 10) } ·
-				Failed { strconv.FormatInt(counts.Failed, 10) }
-			</p>
-			@RecipientsFragment(notificationID, recipients, terminal)
-		</main>
+templ NotificationDetail(userEmail string, notificationID string, status string, total int32, counts RecipientCounts, recipients []Recipient, terminal bool) {
+	@Layout("Notification "+notificationID, userEmail) {
+		<p><a href="/">&larr; Dashboard</a></p>
+		<h1>Notification <code>{ notificationID }</code></h1>
+		<p>Status: <mark>{ status }</mark> · Total: { strconv.Itoa(int(total)) }</p>
+		<p>
+			Queued { strconv.FormatInt(counts.Queued, 10) } ·
+			Sending { strconv.FormatInt(counts.Sending, 10) } ·
+			Sent { strconv.FormatInt(counts.Sent, 10) } ·
+			Delivered { strconv.FormatInt(counts.Delivered, 10) } ·
+			Failed { strconv.FormatInt(counts.Failed, 10) }
+		</p>
+		@RecipientsFragment(notificationID, recipients, terminal)
 	}
 }

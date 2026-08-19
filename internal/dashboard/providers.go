@@ -21,6 +21,13 @@ func toProviderCredentialView(c postgres.ListProviderCredentialsByProjectRow) te
 }
 
 func (s *Server) renderProvidersTab(w http.ResponseWriter, r *http.Request, project postgres.Project, message string) {
+	email, err := s.currentUserEmail(r)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	credentials, err := s.DB.ListProviderCredentialsByProject(r.Context(), project.ID)
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("failed to list provider credentials")
@@ -32,7 +39,7 @@ func (s *Server) renderProvidersTab(w http.ResponseWriter, r *http.Request, proj
 	for _, c := range credentials {
 		views = append(views, toProviderCredentialView(c))
 	}
-	renderPage(w, r, templates.ProvidersTab(toProjectView(project), views, message))
+	renderPage(w, r, templates.ProvidersTab(email, toProjectView(project), views, message))
 }
 
 func (s *Server) handleProvidersTab(w http.ResponseWriter, r *http.Request) {
