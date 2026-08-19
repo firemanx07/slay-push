@@ -1,0 +1,23 @@
+package templates
+
+templ ProjectsList(projects []Project, errorMessage string) {
+	@Layout("Projects") {
+		<main>
+			<p><a href="/">&larr; Dashboard</a></p>
+			<h1>Projects</h1>
+			if errorMessage != "" {
+				<p class="error">{ errorMessage }</p>
+			}
+			<form method="post" action="/projects">
+				<label>Name <input type="text" name="name" required/></label>
+				<label>Slug <input type="text" name="slug" required/></label>
+				<button type="submit">Create project</button>
+			</form>
+			<ul>
+				for _, p := range projects {
+					<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> ({ p.Slug }, { p.Status })</li>
+				}
+			</ul>
+		</main>
+	}
+}

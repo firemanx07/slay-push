@@ -21,5 +21,16 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderPage(w, r, templates.Home(user.Email))
+	projects, err := s.visibleProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	views := make([]templates.Project, 0, len(projects))
+	for _, p := range projects {
+		views = append(views, toProjectView(p))
+	}
+
+	renderPage(w, r, templates.Home(user.Email, views))
 }

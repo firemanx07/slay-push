@@ -69,6 +69,23 @@ func (a *adapter) tokenSourceFor(ctx context.Context, credential json.RawMessage
 	return ts, nil
 }
 
+// TestCredential implements provider.CredentialTester by exchanging the
+// service account for an OAuth2 token, without sending a push.
+func (a *adapter) TestCredential(ctx context.Context, credential json.RawMessage) error {
+	var cred credentialJSON
+	if err := json.Unmarshal(credential, &cred); err != nil || cred.ProjectID == "" {
+		return fmt.Errorf("fcm: invalid service account credential: %w", err)
+	}
+	ts, err := a.tokenSourceFor(ctx, credential)
+	if err != nil {
+		return err
+	}
+	if _, err := ts.Token(); err != nil {
+		return fmt.Errorf("fcm: fetch oauth2 token: %w", err)
+	}
+	return nil
+}
+
 type sendEnvelope struct {
 	Message fcmMessage `json:"message"`
 }

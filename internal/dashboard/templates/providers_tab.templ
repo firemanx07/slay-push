@@ -1,0 +1,53 @@
+package templates
+
+templ ProvidersTab(project Project, credentials []ProviderCredential, message string) {
+	@Layout(project.Name + " · Providers") {
+		<main>
+			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+			@ProjectNav(project.ID)
+			<h2>Providers</h2>
+			if message != "" {
+				<p>{ message }</p>
+			}
+			<table>
+				<tr><th>Provider</th><th>Environment</th><th>Active</th><th>Updated</th><th></th></tr>
+				for _, c := range credentials {
+					<tr>
+						<td>{ c.ProviderType }</td>
+						<td>{ c.Environment }</td>
+						if c.IsActive {
+							<td>yes</td>
+						} else {
+							<td>no</td>
+						}
+						<td>{ c.UpdatedAt.Format("2006-01-02 15:04") }</td>
+						<td>
+							<form method="post" action={ templ.URL("/projects/" + project.ID + "/providers/test") }>
+								<input type="hidden" name="provider" value={ c.ProviderType }/>
+								<button type="submit">Test</button>
+							</form>
+						</td>
+					</tr>
+				}
+			</table>
+
+			<h3>Add / update credential</h3>
+			<form method="post" action={ templ.URL("/projects/" + project.ID + "/providers") }>
+				<label>
+					Provider
+					<select name="provider">
+						<option value="expo">expo</option>
+						<option value="fcm">fcm</option>
+						<option value="apns">apns</option>
+						<option value="hms">hms</option>
+					</select>
+				</label>
+				<label>
+					Credential JSON
+					<textarea name="credential" rows="6" cols="60" required></textarea>
+				</label>
+				<button type="submit">Save credential</button>
+			</form>
+		</main>
+	}
+}

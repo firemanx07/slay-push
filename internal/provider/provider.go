@@ -48,6 +48,14 @@ type Adapter interface {
 	Send(ctx context.Context, credential json.RawMessage, req SendRequest) (SendResult, error)
 }
 
+// CredentialTester is implemented by adapters that can validate a decrypted
+// credential locally (parse it, build a client from it) without sending a
+// push. Adapters that don't implement it fall back to a bare JSON-shape
+// check by the caller.
+type CredentialTester interface {
+	TestCredential(ctx context.Context, credential json.RawMessage) error
+}
+
 // Factory constructs an Adapter.
 type Factory func() Adapter
 

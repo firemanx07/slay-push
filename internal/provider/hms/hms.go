@@ -105,6 +105,17 @@ func (a *adapter) accessTokenFor(ctx context.Context, credential json.RawMessage
 	return tokenResp.AccessToken, nil
 }
 
+// TestCredential implements provider.CredentialTester by exchanging the
+// app id/secret for an OAuth2 access token, without sending a push.
+func (a *adapter) TestCredential(ctx context.Context, credential json.RawMessage) error {
+	var cred credentialJSON
+	if err := json.Unmarshal(credential, &cred); err != nil || cred.AppID == "" || cred.AppSecret == "" {
+		return fmt.Errorf("hms: invalid credential: %w", err)
+	}
+	_, err := a.accessTokenFor(ctx, credential, cred)
+	return err
+}
+
 func (a *adapter) invalidateToken(credential json.RawMessage) {
 	key := sha256.Sum256(credential)
 	a.mu.Lock()

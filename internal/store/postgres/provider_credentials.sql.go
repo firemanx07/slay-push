@@ -40,6 +40,53 @@ func (q *Queries) GetActiveProviderCredential(ctx context.Context, arg GetActive
 	return i, err
 }
 
+const listProviderCredentialsByProject = `-- name: ListProviderCredentialsByProject :many
+select id, project_id, provider_type, environment, is_active, created_at, updated_at
+from provider_credentials
+where project_id = $1
+order by provider_type
+`
+
+type ListProviderCredentialsByProjectRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	ProjectID    pgtype.UUID        `json:"project_id"`
+	ProviderType string             `json:"provider_type"`
+	Environment  string             `json:"environment"`
+	IsActive     bool               `json:"is_active"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Never selects credential/wrapped_dek: this feeds the dashboard, which
+// must never see ciphertext or key material.
+func (q *Queries) ListProviderCredentialsByProject(ctx context.Context, projectID pgtype.UUID) ([]ListProviderCredentialsByProjectRow, error) {
+	rows, err := q.db.Query(ctx, listProviderCredentialsByProject, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProviderCredentialsByProjectRow
+	for rows.Next() {
+		var i ListProviderCredentialsByProjectRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.ProviderType,
+			&i.Environment,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertProviderCredential = `-- name: UpsertProviderCredential :one
 insert into provider_credentials (project_id, provider_type, environment, credential, wrapped_dek)
 values ($1, $2, $3, $4, $5)

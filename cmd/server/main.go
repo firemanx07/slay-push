@@ -148,25 +148,29 @@ func runServe(cfg config.Config, logger zerolog.Logger, mode string) error {
 
 	queries := postgres.New(db)
 
+	asynqClient, err := queue.NewClient(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("connect asynq client: %w", err)
+	}
+	defer func() { _ = asynqClient.Close() }()
+
+	targetingRegistry := targeting.NewRegistry(queries)
+	dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
+
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", platform.HealthHandler(db, rdb))
 
 	if mode == "serve-api" || mode == "serve-all" {
-		asynqClient, err := queue.NewClient(cfg.RedisURL)
-		if err != nil {
-			return fmt.Errorf("connect asynq client: %w", err)
-		}
-		defer func() { _ = asynqClient.Close() }()
-
-		targetingRegistry := targeting.NewRegistry(queries)
-		dispatchHandlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
 		rateLimiter := apikey.NewRateLimiter(rdb, cfg.DefaultRateLimitRPS, logger)
 		apiServer := &apihttp.Server{DB: queries, Dispatch: dispatchHandlers, RateLimiter: rateLimiter, Logger: logger}
 		mux.Handle("/api/", apihttp.NewRouter(apiServer))
 	}
 
 	if mode == "serve-dashboard" || mode == "serve-all" {
-		dashboardServer := &dashboard.Server{DB: queries, Logger: logger, CookieSecure: cfg.CookieSecure}
+		dashboardServer := &dashboard.Server{
+			DB: queries, Dispatch: dispatchHandlers, MasterKey: masterKey,
+			Logger: logger, CookieSecure: cfg.CookieSecure,
+		}
 		mux.Handle("/", dashboard.NewRouter(dashboardServer))
 	}
 

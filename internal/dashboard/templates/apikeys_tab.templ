@@ -1,0 +1,54 @@
+package templates
+
+templ APIKeysTab(project Project, keys []APIKey, revealedKey string, message string) {
+	@Layout(project.Name + " · API Keys") {
+		<main>
+			<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
+			@ProjectNav(project.ID)
+			<h2>API Keys</h2>
+			if revealedKey != "" {
+				<p class="error">Save this key now — it cannot be shown again:</p>
+				<pre>{ revealedKey }</pre>
+			}
+			if message != "" {
+				<p>{ message }</p>
+			}
+			<table>
+				<tr><th>Name</th><th>Prefix</th><th>Scope</th><th>Created</th><th>Status</th><th></th></tr>
+				for _, k := range keys {
+					<tr>
+						<td>{ k.Name }</td>
+						<td>{ k.KeyPrefix }</td>
+						<td>{ k.Scope }</td>
+						<td>{ k.CreatedAt.Format("2006-01-02 15:04") }</td>
+						if k.Revoked {
+							<td>revoked</td>
+						} else {
+							<td>active</td>
+						}
+						<td>
+							if !k.Revoked {
+								<form method="post" action={ templ.URL("/projects/" + project.ID + "/api-keys/" + k.ID + "/revoke") }>
+									<button type="submit">Revoke</button>
+								</form>
+							}
+						</td>
+					</tr>
+				}
+			</table>
+
+			<h3>Create API key</h3>
+			<form method="post" action={ templ.URL("/projects/" + project.ID + "/api-keys") }>
+				<label>Name <input type="text" name="name" required/></label>
+				<label>
+					Scope
+					<select name="scope">
+						<option value="send">send</option>
+						<option value="read">read</option>
+					</select>
+				</label>
+				<button type="submit">Create</button>
+			</form>
+		</main>
+	}
+}

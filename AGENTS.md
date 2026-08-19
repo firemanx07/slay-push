@@ -43,7 +43,10 @@ api/openapi.yaml       the public HTTP API's OpenAPI 3.0 contract
   (`internal/provider/{expo,fcm,apns,hms}`) self-registers into a factory registry via
   `provider.Register("name", New)` in an `init()` — see `internal/provider/provider.go`. Adding a
   5th provider means adding one new package; it should never require touching dispatch, queue, or
-  existing provider code.
+  existing provider code. `provider.CredentialTester` is the same pattern for an optional
+  capability: an adapter implements `TestCredential` only if it can validate a credential locally
+  (fcm/hms/apns do; expo doesn't) — callers type-assert for it rather than requiring every adapter
+  to support it.
 - **Targeting is a strategy interface, not a growing if/else.** `internal/targeting.Resolver` has
   exactly two implementations today: `ByExplicitTargets` (transactional — explicit device ids) and
   `ByGroup` (group push — every active device under one or more external ids). A future

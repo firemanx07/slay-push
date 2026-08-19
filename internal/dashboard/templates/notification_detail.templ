@@ -1,0 +1,50 @@
+package templates
+
+import "strconv"
+
+templ recipientRows(recipients []Recipient) {
+	<tr><th>Device</th><th>Provider</th><th>Status</th><th>Message ID</th><th>Error</th><th>Attempts</th></tr>
+	for _, r := range recipients {
+		<tr>
+			<td>{ r.DeviceID }</td>
+			<td>{ r.ProviderType }</td>
+			<td>{ r.Status }</td>
+			<td>{ r.ProviderMessageID }</td>
+			<td>{ r.ErrorMessage }</td>
+			<td>{ strconv.Itoa(int(r.AttemptCount)) }</td>
+		</tr>
+	}
+}
+
+// RecipientsFragment renders the recipients table, still polling via htmx
+// when not yet terminal. Used both as part of NotificationDetail's initial
+// page and as the bare fragment htmx polls.
+templ RecipientsFragment(notificationID string, recipients []Recipient, terminal bool) {
+	if terminal {
+		<table id="recipients">
+			@recipientRows(recipients)
+		</table>
+	} else {
+		<table id="recipients" hx-get={ "/notifications/" + notificationID + "/recipients-fragment" } hx-trigger="every 2s" hx-swap="outerHTML">
+			@recipientRows(recipients)
+		</table>
+	}
+}
+
+templ NotificationDetail(notificationID string, status string, total int32, counts RecipientCounts, recipients []Recipient, terminal bool) {
+	@Layout("Notification " + notificationID) {
+		<main>
+			<p><a href="/">&larr; Dashboard</a></p>
+			<h1>Notification { notificationID }</h1>
+			<p>Status: { status } · Total: { strconv.Itoa(int(total)) }</p>
+			<p>
+				Queued { strconv.FormatInt(counts.Queued, 10) } ·
+				Sending { strconv.FormatInt(counts.Sending, 10) } ·
+				Sent { strconv.FormatInt(counts.Sent, 10) } ·
+				Delivered { strconv.FormatInt(counts.Delivered, 10) } ·
+				Failed { strconv.FormatInt(counts.Failed, 10) }
+			</p>
+			@RecipientsFragment(notificationID, recipients, terminal)
+		</main>
+	}
+}

@@ -1,0 +1,11 @@
+package templates
+
+templ ProjectNav(projectID string) {
+	<nav>
+		<a href={ templ.URL("/projects/" + projectID) }>Overview</a> ·
+		<a href={ templ.URL("/projects/" + projectID + "/providers") }>Providers</a> ·
+		<a href={ templ.URL("/projects/" + projectID + "/api-keys") }>API Keys</a> ·
+		<a href={ templ.URL("/projects/" + projectID + "/devices") }>Devices</a> ·
+		<a href={ templ.URL("/projects/" + projectID + "/notifications") }>Notifications</a>
+	</nav>
+}

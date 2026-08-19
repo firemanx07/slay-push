@@ -127,6 +127,23 @@ func TestSend_TokenCaching(t *testing.T) {
 	}
 }
 
+func TestTestCredential_Success(t *testing.T) {
+	server := newTestServer(t, nil, `{"code":"80000000","msg":"Success","requestId":"req-1"}`)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	if err := a.TestCredential(context.Background(), newTestCredential()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTestCredential_InvalidCredential(t *testing.T) {
+	a := New().(*adapter)
+	if err := a.TestCredential(context.Background(), []byte(`{}`)); err == nil {
+		t.Fatal("expected error for credential missing app_id/app_secret")
+	}
+}
+
 func TestStringifyData(t *testing.T) {
 	got := stringifyData(map[string]any{"key": "value"})
 	if got != `{"key":"value"}` {

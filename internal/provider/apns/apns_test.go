@@ -178,3 +178,19 @@ func TestClientFor_MissingBundleID(t *testing.T) {
 		t.Fatal("expected an error for missing bundle_id")
 	}
 }
+
+func TestTestCredential_Success(t *testing.T) {
+	a := New().(*adapter)
+	cred := newTestCredential(t)
+	if err := a.TestCredential(context.Background(), cred); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTestCredential_MissingBundleID(t *testing.T) {
+	a := New().(*adapter)
+	err := a.TestCredential(context.Background(), []byte(`{"key_id":"x","team_id":"y","private_key":""}`))
+	if err == nil {
+		t.Fatal("expected an error for missing bundle_id")
+	}
+}

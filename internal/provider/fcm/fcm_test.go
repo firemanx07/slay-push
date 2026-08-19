@@ -205,3 +205,22 @@ func TestTokenSourceCaching(t *testing.T) {
 		t.Errorf("token endpoint hit %d times, want 1 (token source should cache)", tokenRequests)
 	}
 }
+
+func TestTestCredential_Success(t *testing.T) {
+	server := newTestServer(t)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	cred := newTestCredential(t, server.URL+"/token")
+
+	if err := a.TestCredential(context.Background(), cred); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTestCredential_InvalidCredential(t *testing.T) {
+	a := New().(*adapter)
+	if err := a.TestCredential(context.Background(), []byte(`{}`)); err == nil {
+		t.Fatal("expected error for credential missing project_id")
+	}
+}

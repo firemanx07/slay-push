@@ -6,6 +6,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Phase 4b: dashboard content pages. Project list/detail (create + overview), a Providers tab
+  (add/update encrypted credentials, "test credentials" via a new `provider.CredentialTester`
+  optional interface implemented by fcm/hms/apns — expo falls back to a JSON-shape check), an
+  API Keys tab (create with one-time reveal, revoke), a Devices tab (search by
+  `external_user_id`/status), and a Notifications tab plus per-notification detail with
+  htmx-polled delivery status that stops polling once every recipient reaches a terminal state.
+  Every dashboard user still sees every project (operator-control-panel model, confirmed with the
+  user) — project visibility is centralized in one helper so a future per-customer scoping layer
+  is a filter added there, not a rewrite.
 - Phase 4a: dashboard local-auth backend. `users`/`sessions` tables, argon2id password hashing
   (`internal/auth`), and a single opaque session token (crypto/rand + sha256, same shape as
   `internal/apikey`'s API keys) looked up per request — no JWT, since a dashboard's traffic never
