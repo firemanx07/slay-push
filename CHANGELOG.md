@@ -5,6 +5,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- Settled on the Apache License 2.0 for `LICENSE`, replacing the earlier Business Source
+  License 1.1 draft. Source-available licenses (BSL, Elastic License 2.0, Sentry's Functional
+  Source License) were considered and explicitly rejected — none of them qualify as actual open
+  source (all restrict who can offer the software as a competing hosted service, which the Open
+  Source Definition disallows), and the project would rather be unambiguously open than carry
+  that restriction. As a standard, unmodified OSI license, it needs no custom drafting or legal
+  review the way the BSL draft did.
+
 ### Added
 - Dashboard styling pass: vendored Pico.css (classless, no build step — same "single vendored
   static asset" convention already used for `htmx.min.js`), a consistent header/nav bar (branding,
@@ -35,6 +44,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   weekly), and community health files (`CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
   issue templates, PR template). CI's single `lint-test` job split into independent
   `build-test`/`lint`/`vulncheck` jobs, all gating the release image build.
+
+### Fixed
+- README's architecture diagram and Roadmap were stale relative to the shipped code: the
+  diagram showed `serve-all` as the only mode and listed a `delivery receipts`/`auth_config`
+  schema that was never built; now reflects the real `serve-api`/`serve-dashboard` mode split
+  and the actual table list (adds `subscribers`, drops the never-built `auth_config`). Roadmap
+  now marks Phases 0–4 complete and Phase 5 (hardening) as current, and the Configuration
+  section no longer claims auth mode/rate limits are dashboard-configurable (they aren't yet).
 
 ### Changed
 - `runMigrate` now uses golang-migrate's `pgx/v5` database driver instead of `database/postgres`
