@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ .Title }}</title>
+<style>html, body, #redoc-container { margin: 0; height: 100%; }</style>
+</head>
+<body>
+<div id="redoc-container"></div>
+<!-- integrity must be recomputed (sha384 of the fetched bundle, base64) whenever this version changes -->
+<script
+  src="https://cdn.redocly.com/redoc/v2.5.3/bundles/redoc.standalone.js"
+  integrity="sha384-xiEssMQFSpSfLbzRZCGfxxIM5QDb2DTrU6vyoZdp2sV1L6pmOMy6MpTtUoLbpC96"
+  crossorigin="anonymous"
+></script>
+<script>
+  Redoc.init("{{ "openapi/openapi.yaml" | relURL }}", {}, document.getElementById("redoc-container"));
+</script>
+</body>
+</html>
