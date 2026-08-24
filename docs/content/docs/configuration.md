@@ -8,14 +8,23 @@ Only what's needed before the database is reachable lives in environment variabl
 else — provider credentials, API keys — is configured from the dashboard after first-run setup
 and stored in Postgres.
 
-| Variable | Default | Notes |
-|---|---|---|
-| `POSTGRES_PASSWORD` | `pushdispatch` (dev) | Set a real password before exposing this beyond localhost. |
-| `APP_PORT` | `8080` | Host-side port for the dashboard/API. |
-| `APP_MASTER_KEY` | *(none)* | AES-256-GCM key encrypting provider credentials at rest. **Losing it makes stored credentials unrecoverable.** Generate with `openssl rand -base64 32`. |
-| `APP_COOKIE_SECURE` | `true` | Marks the dashboard session cookie HTTPS-only. Set to `false` only for local plain-HTTP development. |
-| `LOG_FORMAT` | `json` | `seq` is only meaningful with the dev compose overlay. |
-| `LOG_LEVEL` | `info` | |
+Two of these (`POSTGRES_PASSWORD`, `APP_PORT`) are read by `docker-compose.yml` itself, not by
+the application — they template the Postgres container's password and the host-side port
+mapping. Everything else is read directly by the Go binary (`internal/config`).
+
+| Variable | Default | Read by | Notes |
+|---|---|---|---|
+| `POSTGRES_PASSWORD` | `pushdispatch` (dev) | Compose | Set a real password before exposing this beyond localhost — interpolated into `DATABASE_URL` for the `app`/`worker` containers. |
+| `APP_PORT` | `8080` | Compose | Host-side port the dashboard/API is exposed on. |
+| `APP_HTTP_ADDR` | `:8080` | App | The address the binary itself binds to inside its container. |
+| `DATABASE_URL` | *(localhost default, overridden by Compose)* | App | Full Postgres connection string. |
+| `REDIS_URL` | *(localhost default, overridden by Compose)* | App | Full Redis connection string. |
+| `APP_MASTER_KEY` | *(none)* | App | AES-256-GCM key encrypting provider credentials at rest. **Losing it makes stored credentials unrecoverable.** Generate with `openssl rand -base64 32`. |
+| `APP_COOKIE_SECURE` | `true` | App | Marks the dashboard session cookie HTTPS-only. Set to `false` only for local plain-HTTP development. |
+| `DEFAULT_RATE_LIMIT_RPS` | `10` | App | Per-API-key rate limit; the per-project ceiling is 5x this. |
+| `LOG_FORMAT` | `json` | App | `seq` is only meaningful with the dev compose overlay. |
+| `LOG_LEVEL` | `info` | App | |
+| `SEQ_URL` | *(none)* | App | Only read when `LOG_FORMAT=seq`. |
 
 ## Why no external KMS
 

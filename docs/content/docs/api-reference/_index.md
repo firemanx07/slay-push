@@ -17,7 +17,7 @@ dashboard, scoped to `read` or `send`.
 
 | Method | Path | Scope | Description |
 |---|---|---|---|
-| `POST` | `/devices` | `send` | Register or update a device (upsert on project + token). |
-| `POST` | `/notifications` | `send` | Create a notification — enqueued, never sent inline. |
-| `GET` | `/notifications/{id}` | `read` | Aggregate delivery status for a notification. |
-| `GET` | `/notifications/{id}/recipients` | `read` | Per-device delivery detail for a notification. |
+| `POST` | `/api/v1/devices` | `send` | Register or update a device (upsert on project + token). |
+| `POST` | `/api/v1/notifications` | `send` | Create a notification — enqueued, never sent inline. |
+| `GET` | `/api/v1/notifications/{id}` | `read` | Aggregate delivery status for a notification. |
+| `GET` | `/api/v1/notifications/{id}/recipients` | `read` | Per-device delivery detail for a notification. |

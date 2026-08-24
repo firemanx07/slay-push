@@ -58,7 +58,11 @@ health (a device is `active`, `stale`, or `invalid`) instead of conflating the t
 it inserts a `pending` row and enqueues one job. A separate `worker` process resolves targeting
 and dispatches to providers, with per-provider queues so a slow or down provider never blocks the
 others, retry/backoff on transient failures, and an idempotency anchor
-(`notification_id, device_id`) so a retried enqueue can't double-send.
+(`notification_id, device_id`) so a retried enqueue can't create a duplicate recipient row.
+Delivery itself is at-least-once, not exactly-once: a crash between a provider accepting a push
+and the recipient row being marked sent can still result in a duplicate push on retry — no
+provider offers a true idempotency key for this. See [SECURITY.md](https://github.com/firemanx07/slay-push/blob/main/SECURITY.md)
+for the full tradeoff.
 
 ## Adding a provider or a targeting strategy
 
