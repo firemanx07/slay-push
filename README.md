@@ -2,6 +2,8 @@
 
 [![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ea4aaa)](https://github.com/sponsors/firemanx07)
 
+📖 [Full documentation](https://firemanx07.github.io/slay-push/)
+
 Self-hosted, multi-tenant push notification dispatch microservice. Sends directly to Expo,
 FCM (HTTP v1), APNs (HTTP/2), and Huawei HMS Push Kit — no proxying through a third-party
 push backend. Includes a device/subscriber registry, delivery-status tracking, and a small

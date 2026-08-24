@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ .Title }}</title>
+<style>html, body, #redoc-container { margin: 0; height: 100%; }</style>
+</head>
+<body>
+<div id="redoc-container"></div>
+<script src="https://cdn.redocly.com/redoc/v2.5.3/bundles/redoc.standalone.js"></script>
+<script>
+  Redoc.init("{{ "openapi/openapi.yaml" | relURL }}", {}, document.getElementById("redoc-container"));
+</script>
+</body>
+</html>
