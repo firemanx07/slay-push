@@ -201,6 +201,12 @@ components:
         device_uuid:
           type: string
           maxLength: 128
+          description: >-
+            A stable hardware/install identifier for this physical device, independent of the
+            push token. When a registration's device_uuid matches another active device under
+            the same external_user_id but with a different token, the prior device is marked
+            stale — the same physical device rotated its push token (e.g. an FCM token
+            refresh), so the old token is superseded rather than left active.
         language:
           type: string
           maxLength: 35
