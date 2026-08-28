@@ -1,0 +1,36 @@
+coverage:
+  precision: 1
+  round: down
+  range: "50...90"
+  status:
+    project:
+      default:
+        # No fixed percentage target: coverage is actively being raised from
+        # a low baseline, so a hard target would either fail every PR today
+        # or need constant manual bumping. `auto` compares against the base
+        # commit instead — the project-wide ratchet is `patch` below.
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        # The actual ratchet: new/changed lines in a PR must be well
+        # covered, which is what raises the project total over time without
+        # blocking on already-existing untested code. threshold: 0 because
+        # target is meant as a hard minimum — a nonzero threshold would let
+        # patch coverage pass below 80% (e.g. 5% would allow 75%),
+        # defeating the point of setting the target at all.
+        target: 80%
+        threshold: 0%
+
+comment:
+  layout: "header, diff, flags, files"
+  behavior: default
+  require_changes: false
+
+ignore:
+  # sqlc-generated — do not hand-edit, no value in tracking coverage on it.
+  - "internal/store/postgres/*.sql.go"
+  - "internal/store/postgres/db.go"
+  - "internal/store/postgres/models.go"
+  # templ-generated — same reasoning.
+  - "internal/dashboard/templates/*_templ.go"

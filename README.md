@@ -1,6 +1,7 @@
 # slay-push
 
 [![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ea4aaa)](https://github.com/sponsors/firemanx07)
+[![codecov](https://codecov.io/github/firemanx07/slay-push/graph/badge.svg?token=B15DH3X9S7)](https://codecov.io/github/firemanx07/slay-push)
 
 📖 [Full documentation](https://firemanx07.github.io/slay-push/)
 
