@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"os"
@@ -51,6 +52,81 @@ func assertInDefaultBackoffRange(t *testing.T, n int, got time.Duration) {
 	max := time.Duration(base+maxJitter-1) * time.Second
 	if got < min || got > max {
 		t.Errorf("RetryDelayFunc(%d, ...) = %v, want in [%v, %v] (asynq.DefaultRetryDelayFunc's range)", n, got, min, max)
+	}
+}
+
+func TestThrottledError(t *testing.T) {
+	inner := errors.New("rate limited")
+	te := &ThrottledError{RetryAfter: 5 * time.Second, Err: inner}
+
+	if got := te.Error(); got != inner.Error() {
+		t.Errorf("Error() = %q, want %q", got, inner.Error())
+	}
+	if !errors.Is(te, inner) {
+		t.Error("errors.Is(te, inner) = false, want true (Unwrap should expose the wrapped error)")
+	}
+}
+
+func TestNewClient(t *testing.T) {
+	t.Run("invalid redis url returns an error", func(t *testing.T) {
+		if _, err := NewClient("not-a-redis-url"); err == nil {
+			t.Fatal("NewClient with an invalid URL: got nil error, want non-nil")
+		}
+	})
+
+	t.Run("valid redis url succeeds", func(t *testing.T) {
+		redisURL := os.Getenv("REDIS_URL")
+		if redisURL == "" {
+			t.Skip("REDIS_URL not set")
+		}
+		client, err := NewClient(redisURL)
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		t.Cleanup(func() { _ = client.Close() })
+	})
+}
+
+// TestEnqueueFanout confirms a fanout task can be enqueued and is visible to
+// the inspector under the fanout queue/type.
+func TestEnqueueFanout(t *testing.T) {
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		t.Skip("REDIS_URL not set")
+	}
+	opt, err := ParseRedisOpt(redisURL)
+	if err != nil {
+		t.Fatalf("parse redis url: %v", err)
+	}
+	client := asynq.NewClient(opt)
+	t.Cleanup(func() { _ = client.Close() })
+
+	payload := FanoutPayload{NotificationID: uuid.New(), ProjectID: uuid.New()}
+	if err := EnqueueFanout(client, payload); err != nil {
+		t.Fatalf("EnqueueFanout: %v", err)
+	}
+
+	inspector := asynq.NewInspector(opt)
+	t.Cleanup(func() { _ = inspector.Close() })
+
+	// PageSize is generous: ListPendingTasks defaults to 30, easily crowded
+	// out by leftover fanout tasks accumulated in a shared dev Redis with no
+	// worker consuming them.
+	tasks, err := inspector.ListPendingTasks(QueueFanout, asynq.PageSize(10000))
+	if err != nil {
+		t.Fatalf("ListPendingTasks: %v", err)
+	}
+	var found bool
+	for _, task := range tasks {
+		var p FanoutPayload
+		if err := json.Unmarshal(task.Payload, &p); err == nil && p.NotificationID == payload.NotificationID {
+			found = true
+			t.Cleanup(func() { _ = inspector.DeleteTask(QueueFanout, task.ID) })
+			break
+		}
+	}
+	if !found {
+		t.Fatal("enqueued fanout task not found among pending tasks")
 	}
 }
 
