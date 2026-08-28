@@ -1,12 +1,14 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/firemanx07/slay-push/internal/provider"
@@ -121,22 +123,40 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var device postgres.Device
+	if req.ExternalUserID != "" && req.Device != nil && req.Device.DeviceUUID != "" {
+		device, err = s.registerDeviceSerialized(r.Context(), projectID, req, metadataJSON)
+	} else {
+		device, err = s.upsertDevice(r.Context(), s.DB, projectID, req, metadataJSON)
+	}
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("register device failed")
+		writeError(w, http.StatusInternalServerError, "failed to register device")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, registerDeviceResponse{ID: postgres.UUIDTo(device.ID).String()})
+}
+
+// upsertDevice upserts the subscriber (if an external_user_id was given)
+// and the device row itself, against the given queries handle — either the
+// server's pool-backed one, or a transaction-scoped one from
+// registerDeviceSerialized.
+func (s *Server) upsertDevice(ctx context.Context, q *postgres.Queries, projectID uuid.UUID, req registerDeviceRequest, metadataJSON []byte) (postgres.Device, error) {
 	// subscriber_id stays NULL when no external_user_id is given.
 	var subscriberID pgtype.UUID
 	if req.ExternalUserID != "" {
-		subscriber, err := s.DB.UpsertSubscriber(r.Context(), postgres.UpsertSubscriberParams{
+		subscriber, err := q.UpsertSubscriber(ctx, postgres.UpsertSubscriberParams{
 			ProjectID:  postgres.UUIDFrom(projectID),
 			ExternalID: req.ExternalUserID,
 		})
 		if err != nil {
-			s.Logger.Error().Err(err).Msg("upsert subscriber failed")
-			writeError(w, http.StatusInternalServerError, "failed to register device")
-			return
+			return postgres.Device{}, fmt.Errorf("upsert subscriber: %w", err)
 		}
 		subscriberID = subscriber.ID
 	}
 
-	device, err := s.DB.UpsertDevice(r.Context(), postgres.UpsertDeviceParams{
+	device, err := q.UpsertDevice(ctx, postgres.UpsertDeviceParams{
 		ProjectID:    postgres.UUIDFrom(projectID),
 		Token:        req.Token,
 		Platform:     req.Platform,
@@ -145,12 +165,54 @@ func (s *Server) handleRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		SubscriberID: subscriberID,
 	})
 	if err != nil {
-		s.Logger.Error().Err(err).Msg("upsert device failed")
-		writeError(w, http.StatusInternalServerError, "failed to register device")
-		return
+		return postgres.Device{}, fmt.Errorf("upsert device: %w", err)
+	}
+	return device, nil
+}
+
+// registerDeviceSerialized upserts the subscriber and device, then
+// supersedes any other active device under the same subscriber sharing the
+// same device_uuid (the same physical device rotating its push token) —
+// all inside one transaction holding a transaction-scoped advisory lock
+// keyed on (project, external_user_id, device_uuid). Without this lock, two
+// concurrent registrations for the same physical device could each mark
+// the other's row stale, leaving none active.
+func (s *Server) registerDeviceSerialized(ctx context.Context, projectID uuid.UUID, req registerDeviceRequest, metadataJSON []byte) (postgres.Device, error) {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return postgres.Device{}, fmt.Errorf("begin device registration tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtx := s.DB.WithTx(tx)
+
+	lockKey := projectID.String() + ":" + req.ExternalUserID + ":" + req.Device.DeviceUUID
+	if err := qtx.AdvisoryLockDeviceUUID(ctx, lockKey); err != nil {
+		return postgres.Device{}, fmt.Errorf("acquire device registration lock: %w", err)
 	}
 
-	writeJSON(w, http.StatusOK, registerDeviceResponse{ID: postgres.UUIDTo(device.ID).String()})
+	device, err := s.upsertDevice(ctx, qtx, projectID, req, metadataJSON)
+	if err != nil {
+		return postgres.Device{}, err
+	}
+
+	superseded, err := qtx.MarkStaleDevicesByDeviceUUID(ctx, postgres.MarkStaleDevicesByDeviceUUIDParams{
+		ProjectID:    postgres.UUIDFrom(projectID),
+		SubscriberID: device.SubscriberID,
+		ID:           device.ID,
+		DeviceUuid:   req.Device.DeviceUUID,
+	})
+	if err != nil {
+		return postgres.Device{}, fmt.Errorf("supersede rotated devices: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return postgres.Device{}, fmt.Errorf("commit device registration tx: %w", err)
+	}
+	if len(superseded) > 0 {
+		s.Logger.Info().Int("count", len(superseded)).Msg("superseded rotated device token(s)")
+	}
+	return device, nil
 }
 
 // buildDeviceMetadata merges the caller-supplied device info with the

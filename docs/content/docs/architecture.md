@@ -52,6 +52,14 @@ fans out to every active device beneath it.
 This split also isolates identity state (a subscriber can be `opted_out`) from delivery-endpoint
 health (a device is `active`, `stale`, or `invalid`) instead of conflating the two.
 
+Push tokens can change on the same physical device — an FCM token refresh, an app reinstall.
+Registration accepts an optional `device.device_uuid` (a stable hardware/install identifier,
+independent of the token); when a new registration's `device_uuid` matches another active device
+under the same subscriber but with a different token, the old device is marked `stale` instead
+of lingering as `active` until a real send eventually fails against it. There's no fallback
+heuristic without `device_uuid` — a same-subscriber-and-platform match alone isn't reliable
+evidence of the same physical device (a user with two phones would get one wrongly marked stale).
+
 ## Everything after intake is async
 
 `POST /api/v1/notifications` never resolves an audience or calls a provider in the request path —

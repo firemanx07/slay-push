@@ -2,9 +2,11 @@
 package http
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 
 	"github.com/firemanx07/slay-push/internal/apikey"
@@ -12,9 +14,17 @@ import (
 	"github.com/firemanx07/slay-push/internal/store/postgres"
 )
 
+// txBeginner is the minimal capability handleRegisterDevice's serialized
+// registration path needs from a connection pool. Satisfied by
+// *pgxpool.Pool.
+type txBeginner interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 // Server holds the dependencies the public JSON API's handlers need.
 type Server struct {
 	DB          *postgres.Queries
+	Pool        txBeginner // only used to serialize device-rotation registrations in a transaction
 	Dispatch    *dispatch.Handlers
 	RateLimiter *apikey.RateLimiter
 	Logger      zerolog.Logger
