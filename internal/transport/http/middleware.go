@@ -23,10 +23,12 @@ type ctxKey int
 
 const ctxKeyProjectID ctxKey = iota
 
+// contextWithProjectID returns a copy of ctx with the project id attached.
 func contextWithProjectID(ctx context.Context, id uuid.UUID) context.Context {
 	return context.WithValue(ctx, ctxKeyProjectID, id)
 }
 
+// projectIDFromContext extracts the project id from ctx, if present.
 func projectIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	id, ok := ctx.Value(ctxKeyProjectID).(uuid.UUID)
 	return id, ok
@@ -79,6 +81,7 @@ func (s *Server) requireScope(minScope apikey.Scope) func(http.Handler) http.Han
 	}
 }
 
+// touchAPIKeyLastUsed updates the last_used_at timestamp for the given API key.
 func (s *Server) touchAPIKeyLastUsed(id pgtype.UUID) {
 	ctx, cancel := context.WithTimeout(context.Background(), touchAPIKeyTimeout)
 	defer cancel()
@@ -87,6 +90,7 @@ func (s *Server) touchAPIKeyLastUsed(id pgtype.UUID) {
 	}
 }
 
+// bearerToken extracts the bearer token from the Authorization header.
 func bearerToken(r *http.Request) (string, bool) {
 	h := r.Header.Get("Authorization")
 	const prefix = "Bearer "

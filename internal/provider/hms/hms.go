@@ -116,6 +116,7 @@ func (a *adapter) TestCredential(ctx context.Context, credential json.RawMessage
 	return err
 }
 
+// invalidateToken removes the cached OAuth2 token for credential.
 func (a *adapter) invalidateToken(credential json.RawMessage) {
 	key := sha256.Sum256(credential)
 	a.mu.Lock()
@@ -236,6 +237,7 @@ func (a *adapter) classify(credential json.RawMessage, parsed sendResponse) prov
 	}
 }
 
+// retryAfter parses the Retry-After header as a duration in seconds.
 func retryAfter(resp *http.Response) time.Duration {
 	if v := resp.Header.Get("Retry-After"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil {

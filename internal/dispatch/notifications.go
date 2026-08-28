@@ -39,22 +39,14 @@ var ErrEmptyTargets = errors.New("dispatch: request specifies no targets")
 // CreateNotification persists the notification (status=pending) and
 // enqueues one fanout job. Audience resolution happens only in the fanout
 // handler, in the worker.
+//
+// Idempotency-key handling is a single atomic insert, not a check-then-act:
+// concurrent calls sharing a key can't both create a row (or one succeed
+// while the other gets a raw conflict error) — the loser's insert is
+// skipped by the database itself, and it fetches the winner's row instead.
 func (h *Handlers) CreateNotification(ctx context.Context, projectID uuid.UUID, req CreateNotificationRequest) (postgres.Notification, error) {
 	if len(req.DeviceIDs) == 0 && len(req.ExternalUserIDs) == 0 {
 		return postgres.Notification{}, ErrEmptyTargets
-	}
-
-	if req.IdempotencyKey != "" {
-		existing, err := h.DB.GetNotificationByIdempotencyKey(ctx, postgres.GetNotificationByIdempotencyKeyParams{
-			ProjectID:      postgres.UUIDFrom(projectID),
-			IdempotencyKey: postgres.TextFrom(req.IdempotencyKey),
-		})
-		if err == nil {
-			return existing, nil
-		}
-		if !errors.Is(err, pgx.ErrNoRows) {
-			return postgres.Notification{}, fmt.Errorf("check idempotency key: %w", err)
-		}
 	}
 
 	dataJSON, err := json.Marshal(req.Data)
@@ -74,6 +66,20 @@ func (h *Handlers) CreateNotification(ctx context.Context, projectID uuid.UUID, 
 		Data:           dataJSON,
 		TargetSpec:     targetSpec,
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Lost the idempotency-key conflict (or it already existed) — fetch
+		// and return the winner's row instead of enqueuing a second fanout
+		// for it. req.IdempotencyKey is guaranteed non-empty here: a null
+		// idempotency_key never conflicts against the partial unique index.
+		existing, getErr := h.DB.GetNotificationByIdempotencyKey(ctx, postgres.GetNotificationByIdempotencyKeyParams{
+			ProjectID:      postgres.UUIDFrom(projectID),
+			IdempotencyKey: postgres.TextFrom(req.IdempotencyKey),
+		})
+		if getErr != nil {
+			return postgres.Notification{}, fmt.Errorf("fetch existing notification after idempotency-key conflict: %w", getErr)
+		}
+		return existing, nil
+	}
 	if err != nil {
 		return postgres.Notification{}, fmt.Errorf("create notification: %w", err)
 	}

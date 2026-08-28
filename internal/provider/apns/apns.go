@@ -55,6 +55,7 @@ func New() provider.Adapter {
 
 func (a *adapter) Name() string { return "apns" }
 
+// clientFor returns a cached apns2.Client for the given credential.
 func (a *adapter) clientFor(credential json.RawMessage) (*cachedClient, error) {
 	key := sha256.Sum256(credential)
 

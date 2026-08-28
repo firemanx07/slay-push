@@ -40,6 +40,7 @@ const (
 	maxLanguageLength        = 35 // generous for a BCP-47 tag (e.g. "zh-Hans-TW-x-private")
 )
 
+// validate checks field length constraints and coordinate bounds on device metadata.
 func (d *deviceInfoRequest) validate() error {
 	if d == nil {
 		return nil

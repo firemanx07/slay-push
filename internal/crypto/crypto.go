@@ -68,6 +68,7 @@ func (mk MasterKey) Open(wrappedDEK, ciphertext []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+// seal encrypts plaintext using AES-256-GCM with a random nonce prepended to the ciphertext.
 func seal(key, plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -84,6 +85,7 @@ func seal(key, plaintext []byte) ([]byte, error) {
 	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
+// open decrypts data using AES-256-GCM, reading the nonce from the start of data.
 func open(key, data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {

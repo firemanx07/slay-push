@@ -39,6 +39,7 @@ func Load() Config {
 	}
 }
 
+// getEnvInt reads key from the environment as an integer, returning fallback if absent or malformed.
 func getEnvInt(key string, fallback int) int {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -48,6 +49,7 @@ func getEnvInt(key string, fallback int) int {
 	return fallback
 }
 
+// getEnvBool reads key from the environment as a boolean, returning fallback if absent or malformed.
 func getEnvBool(key string, fallback bool) bool {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
@@ -57,6 +59,7 @@ func getEnvBool(key string, fallback bool) bool {
 	return fallback
 }
 
+// getEnv reads key from the environment, returning fallback if absent or empty.
 func getEnv(key, fallback string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v

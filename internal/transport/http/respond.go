@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// writeJSON encodes v as JSON and writes it with the given HTTP status.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

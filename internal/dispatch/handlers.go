@@ -49,6 +49,7 @@ func (h *Handlers) failRecipient(ctx context.Context, recipientID uuid.UUID, cod
 	}
 }
 
+// isLastAttempt reports whether the current asynq task is on its final retry.
 func isLastAttempt(ctx context.Context) bool {
 	retryCount, ok1 := asynq.GetRetryCount(ctx)
 	maxRetry, ok2 := asynq.GetMaxRetry(ctx)
@@ -58,6 +59,7 @@ func isLastAttempt(ctx context.Context) bool {
 	return retryCount >= maxRetry
 }
 
+// firstNonNilErr returns the first non-nil error from errs, or nil if all are nil.
 func firstNonNilErr(errs ...error) error {
 	for _, e := range errs {
 		if e != nil {

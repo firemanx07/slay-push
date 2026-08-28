@@ -24,6 +24,7 @@ const (
 	seqMaxBatchLines = 200
 )
 
+// newSeqWriter creates a seqWriter that posts log events to seqURL.
 func newSeqWriter(seqURL string) *seqWriter {
 	w := &seqWriter{
 		url:    seqURL + "/api/events/raw?clef",
@@ -33,6 +34,7 @@ func newSeqWriter(seqURL string) *seqWriter {
 	return w
 }
 
+// Write converts a zerolog JSON line to CLEF and adds it to the batch.
 func (w *seqWriter) Write(p []byte) (int, error) {
 	clef, err := toCLEF(p)
 	if err != nil {
@@ -51,6 +53,7 @@ func (w *seqWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// flushLoop periodically flushes the batch to Seq.
 func (w *seqWriter) flushLoop() {
 	ticker := time.NewTicker(seqFlushInterval)
 	defer ticker.Stop()
@@ -59,6 +62,7 @@ func (w *seqWriter) flushLoop() {
 	}
 }
 
+// flush sends the current batch to Seq and resets it.
 func (w *seqWriter) flush() {
 	w.mu.Lock()
 	if w.batch.Len() == 0 {

@@ -42,6 +42,7 @@ func (r *RateLimiter) Allow(ctx context.Context, apiKeyID, projectID uuid.UUID) 
 	return true, 0
 }
 
+// check enforces a single rate limit on key, failing open on Redis errors.
 func (r *RateLimiter) check(ctx context.Context, key string, limit redis_rate.Limit) (bool, time.Duration) {
 	res, err := r.limiter.Allow(ctx, key, limit)
 	if err != nil {
