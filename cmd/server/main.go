@@ -162,7 +162,7 @@ func runServe(cfg config.Config, logger zerolog.Logger, mode string) error {
 
 	if mode == "serve-api" || mode == "serve-all" {
 		rateLimiter := apikey.NewRateLimiter(rdb, cfg.DefaultRateLimitRPS, logger)
-		apiServer := &apihttp.Server{DB: queries, Dispatch: dispatchHandlers, RateLimiter: rateLimiter, Logger: logger}
+		apiServer := &apihttp.Server{DB: queries, Pool: db, Dispatch: dispatchHandlers, RateLimiter: rateLimiter, Logger: logger}
 		mux.Handle("/api/", apihttp.NewRouter(apiServer))
 	}
 

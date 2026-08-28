@@ -11,6 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advisoryLockDeviceUUID = `-- name: AdvisoryLockDeviceUUID :exec
+select pg_advisory_xact_lock(hashtextextended($1::text, 0))
+`
+
+// Transaction-scoped: released automatically at commit/rollback.
+func (q *Queries) AdvisoryLockDeviceUUID(ctx context.Context, lockKey string) error {
+	_, err := q.db.Exec(ctx, advisoryLockDeviceUUID, lockKey)
+	return err
+}
+
 const getDevicesByIDs = `-- name: GetDevicesByIDs :many
 select id, project_id, subscriber_id, token, platform, provider_type, status, metadata, created_at, updated_at from devices where project_id = $1 and id = any($2::uuid[])
 `

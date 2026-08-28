@@ -17,6 +17,10 @@ select * from devices where project_id = $1 and id = any(sqlc.arg(ids)::uuid[]);
 -- name: MarkDeviceStatus :exec
 update devices set status = $2, updated_at = now() where id = $1;
 
+-- name: AdvisoryLockDeviceUUID :exec
+-- Transaction-scoped: released automatically at commit/rollback.
+select pg_advisory_xact_lock(hashtextextended(sqlc.arg(lock_key)::text, 0));
+
 -- name: MarkStaleDevicesByDeviceUUID :many
 -- Marks stale every other active device under the same subscriber that
 -- shares the given device_uuid, excluding the device row just registered.

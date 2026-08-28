@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 
 	"github.com/firemanx07/slay-push/internal/apikey"
@@ -15,6 +16,7 @@ import (
 // Server holds the dependencies the public JSON API's handlers need.
 type Server struct {
 	DB          *postgres.Queries
+	Pool        *pgxpool.Pool // only used to serialize device-rotation registrations in a transaction
 	Dispatch    *dispatch.Handlers
 	RateLimiter *apikey.RateLimiter
 	Logger      zerolog.Logger
