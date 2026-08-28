@@ -46,7 +46,7 @@ func TestHandleCreateNotification_Validation(t *testing.T) {
 		{"title too long", `{"include_player_ids":["` + deviceID + `"],"title":"` + strings.Repeat("a", maxTitleLength+1) + `"}`},
 		{"body too long", `{"include_player_ids":["` + deviceID + `"],"body":"` + strings.Repeat("a", maxBodyLength+1) + `"}`},
 		{"idempotency_key too long", `{"include_player_ids":["` + deviceID + `"],"idempotency_key":"` + strings.Repeat("a", maxIdempotencyKeyLength+1) + `"}`},
-		{"too many include_player_ids", `{"include_player_ids":[` + strings.TrimSuffix(strings.Repeat(`"x",`, maxDeviceIDsPerRequest+1), ",") + `]}`},
+		{"too many include_player_ids", `{"include_player_ids":[` + strings.TrimSuffix(strings.Repeat(`"`+deviceID+`",`, maxDeviceIDsPerRequest+1), ",") + `]}`},
 		{"too many include_external_user_ids", `{"include_external_user_ids":[` + strings.TrimSuffix(strings.Repeat(`"x",`, maxDeviceIDsPerRequest+1), ",") + `]}`},
 		{"data too large", `{"include_player_ids":["` + deviceID + `"],"data":{"blob":"` + strings.Repeat("a", maxDataBytes) + `"}}`},
 	}
