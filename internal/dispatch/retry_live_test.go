@@ -46,6 +46,7 @@ func TestLiveWorker_Retries(t *testing.T) {
 	t.Cleanup(srv.Shutdown)
 
 	inspector := asynq.NewInspector(h.redisOpt)
+	t.Cleanup(func() { _ = inspector.Close() })
 
 	// enqueueRecipient creates a notification + recipient row directly
 	// (skipping fanout, already covered by fanout_test.go) and enqueues its

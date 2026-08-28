@@ -203,3 +203,16 @@ func testMasterKey(t *testing.T) crypto.MasterKey {
 	}
 	return mk
 }
+
+// cleanupSendTask registers a t.Cleanup that deletes the send:expo task
+// for recipientID (its asynq.TaskID) and closes the Inspector used to do
+// it — asynq.NewInspector owns its own Redis connection pool, so it must
+// be closed, not just discarded, once we're done with it.
+func cleanupSendTask(t *testing.T, redisOpt asynq.RedisConnOpt, recipientID uuid.UUID) {
+	t.Helper()
+	t.Cleanup(func() {
+		inspector := asynq.NewInspector(redisOpt)
+		defer func() { _ = inspector.Close() }()
+		_ = inspector.DeleteTask(queue.SendTypeFor("expo"), recipientID.String())
+	})
+}

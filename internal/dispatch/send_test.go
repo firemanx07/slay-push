@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/firemanx07/slay-push/internal/provider"
@@ -39,9 +38,7 @@ func TestHandleSend_InvalidToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecipientByNotificationAndDevice: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = asynq.NewInspector(h.redisOpt).DeleteTask(queue.SendTypeFor("expo"), postgres.UUIDTo(recipient.ID).String())
-	})
+	cleanupSendTask(t, h.redisOpt, postgres.UUIDTo(recipient.ID))
 
 	if err := h.handlers.HandleSend(ctx, queue.SendPayload{
 		NotificationID: postgres.UUIDTo(n.ID),

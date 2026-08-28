@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
 
 	"github.com/firemanx07/slay-push/internal/provider"
 	"github.com/firemanx07/slay-push/internal/queue"
@@ -42,8 +41,7 @@ func TestHandleFanout_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecipientByNotificationAndDevice: %v", err)
 	}
-	inspector := asynq.NewInspector(h.redisOpt)
-	t.Cleanup(func() { _ = inspector.DeleteTask(queue.SendTypeFor("expo"), postgres.UUIDTo(recipient.ID).String()) })
+	cleanupSendTask(t, h.redisOpt, postgres.UUIDTo(recipient.ID))
 
 	if err := h.handlers.HandleSend(ctx, queue.SendPayload{
 		NotificationID: postgres.UUIDTo(n.ID),
@@ -107,9 +105,7 @@ func TestHandleFanout_Idempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecipientByNotificationAndDevice after first fanout: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = asynq.NewInspector(h.redisOpt).DeleteTask(queue.SendTypeFor("expo"), postgres.UUIDTo(recipient.ID).String())
-	})
+	cleanupSendTask(t, h.redisOpt, postgres.UUIDTo(recipient.ID))
 
 	// Re-running fanout for the same notification must not insert a second
 	// recipient row for the same device.

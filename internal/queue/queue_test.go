@@ -83,6 +83,7 @@ func TestEnqueueSend_Dedup(t *testing.T) {
 	}
 
 	inspector := asynq.NewInspector(opt)
+	t.Cleanup(func() { _ = inspector.Close() })
 	t.Cleanup(func() { _ = inspector.DeleteTask(SendTypeFor("expo"), payload.RecipientID.String()) })
 
 	if _, err := inspector.GetTaskInfo(SendTypeFor("expo"), payload.RecipientID.String()); err != nil {
