@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// ApiKey represents an API key row from the api_keys table.
 type ApiKey struct {
 	ID         pgtype.UUID        `json:"id"`
 	ProjectID  pgtype.UUID        `json:"project_id"`
@@ -21,6 +22,7 @@ type ApiKey struct {
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 }
 
+// Device represents a device row from the devices table.
 type Device struct {
 	ID           pgtype.UUID        `json:"id"`
 	ProjectID    pgtype.UUID        `json:"project_id"`
@@ -34,6 +36,7 @@ type Device struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
+// Notification represents a notification row from the notifications table.
 type Notification struct {
 	ID              pgtype.UUID        `json:"id"`
 	ProjectID       pgtype.UUID        `json:"project_id"`
@@ -48,6 +51,7 @@ type Notification struct {
 	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
 }
 
+// NotificationRecipient represents a notification_recipients row linking a notification to a device.
 type NotificationRecipient struct {
 	ID                pgtype.UUID        `json:"id"`
 	NotificationID    pgtype.UUID        `json:"notification_id"`
@@ -63,6 +67,7 @@ type NotificationRecipient struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 }
 
+// Project represents a project row from the projects table.
 type Project struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`
@@ -71,6 +76,7 @@ type Project struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+// ProviderCredential represents a provider_credentials row storing encrypted push provider credentials.
 type ProviderCredential struct {
 	ID           pgtype.UUID        `json:"id"`
 	ProjectID    pgtype.UUID        `json:"project_id"`
@@ -83,6 +89,7 @@ type ProviderCredential struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
+// Session represents a session row from the sessions table for dashboard authentication.
 type Session struct {
 	ID         pgtype.UUID        `json:"id"`
 	UserID     pgtype.UUID        `json:"user_id"`
@@ -93,6 +100,7 @@ type Session struct {
 	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
 }
 
+// Subscriber represents a subscriber row from the subscribers table.
 type Subscriber struct {
 	ID         pgtype.UUID        `json:"id"`
 	ProjectID  pgtype.UUID        `json:"project_id"`
@@ -102,6 +110,7 @@ type Subscriber struct {
 	LastSeenAt pgtype.Timestamptz `json:"last_seen_at"`
 }
 
+// User represents a user row from the users table for dashboard login.
 type User struct {
 	ID           pgtype.UUID        `json:"id"`
 	Email        string             `json:"email"`

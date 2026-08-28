@@ -11,16 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// DBTX is the minimal database interface required by sqlc-generated queries.
 type DBTX interface {
 	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
 	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...interface{}) pgx.Row
 }
 
+// New constructs a Queries instance from a database connection.
 func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
 
+// Queries holds all sqlc-generated database queries.
 type Queries struct {
 	db DBTX
 }
