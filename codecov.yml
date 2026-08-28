@@ -15,9 +15,12 @@ coverage:
       default:
         # The actual ratchet: new/changed lines in a PR must be well
         # covered, which is what raises the project total over time without
-        # blocking on already-existing untested code.
+        # blocking on already-existing untested code. threshold: 0 because
+        # target is meant as a hard minimum — a nonzero threshold would let
+        # patch coverage pass below 80% (e.g. 5% would allow 75%),
+        # defeating the point of setting the target at all.
         target: 80%
-        threshold: 5%
+        threshold: 0%
 
 comment:
   layout: "header, diff, flags, files"
