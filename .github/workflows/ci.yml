@@ -10,6 +10,30 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pushdispatch
+          POSTGRES_PASSWORD: pushdispatch
+          POSTGRES_DB: pushdispatch
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pushdispatch"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://pushdispatch:pushdispatch@localhost:5432/pushdispatch?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -26,7 +50,13 @@ jobs:
           go install github.com/a-h/templ/cmd/templ@latest
           templ generate
           git diff --exit-code -- '*_templ.go'
-      - run: go test ./...
+      - name: apply migrations
+        run: go run ./cmd/server migrate
+      - run: go test ./... -coverprofile=coverage.out -covermode=atomic
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     runs-on: ubuntu-latest
