@@ -15,13 +15,7 @@ import (
 )
 
 func newNotificationRequest(ctx context.Context, method, path string, projectID uuid.UUID, body string) *http.Request {
-	var bodyReader *strings.Reader
-	if body == "" {
-		bodyReader = strings.NewReader("")
-	} else {
-		bodyReader = strings.NewReader(body)
-	}
-	return httptest.NewRequestWithContext(contextWithProjectID(ctx, projectID), method, path, bodyReader)
+	return httptest.NewRequestWithContext(contextWithProjectID(ctx, projectID), method, path, strings.NewReader(body))
 }
 
 // withChiParam attaches the chi "id" URL param the way the router would,
