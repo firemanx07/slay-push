@@ -205,6 +205,7 @@ func classifyError(resp *http.Response, body []byte) provider.SendResult {
 	return result
 }
 
+// retryAfter parses the Retry-After header as a duration in seconds.
 func retryAfter(resp *http.Response) time.Duration {
 	if v := resp.Header.Get("Retry-After"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil {

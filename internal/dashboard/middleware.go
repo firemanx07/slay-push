@@ -21,10 +21,12 @@ type ctxKey int
 
 const ctxKeyUserID ctxKey = iota
 
+// contextWithUserID returns a copy of ctx with the user id attached.
 func contextWithUserID(ctx context.Context, id uuid.UUID) context.Context {
 	return context.WithValue(ctx, ctxKeyUserID, id)
 }
 
+// userIDFromContext extracts the user id from ctx, if present.
 func userIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	id, ok := ctx.Value(ctxKeyUserID).(uuid.UUID)
 	return id, ok
@@ -82,6 +84,7 @@ func (s *Server) requireSession(next http.Handler) http.Handler {
 	})
 }
 
+// touchSessionLastUsed updates the last_used_at timestamp for the given session.
 func (s *Server) touchSessionLastUsed(id pgtype.UUID) {
 	ctx, cancel := context.WithTimeout(context.Background(), touchSessionTimeout)
 	defer cancel()

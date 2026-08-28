@@ -123,6 +123,7 @@ func (a *adapter) Send(ctx context.Context, credential json.RawMessage, req prov
 	return classifyTicket(parsed.Data[0]), nil
 }
 
+// classifyTicket maps an Expo push ticket to a provider.SendResult.
 func classifyTicket(t ticket) provider.SendResult {
 	switch t.Status {
 	case "ok":
@@ -143,6 +144,7 @@ func classifyTicket(t ticket) provider.SendResult {
 	}
 }
 
+// retryAfter parses the Retry-After header as a duration in seconds.
 func retryAfter(resp *http.Response) time.Duration {
 	if v := resp.Header.Get("Retry-After"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil {

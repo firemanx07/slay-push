@@ -94,6 +94,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 	}
 }
 
+// errorMessage returns the message from the first non-nil error in errs, or an empty string.
 func errorMessage(errs ...error) string {
 	if err := firstNonNilErr(errs...); err != nil {
 		return err.Error()
