@@ -28,6 +28,7 @@ func (q *Queries) CompleteNotification(ctx context.Context, arg CompleteNotifica
 const createNotification = `-- name: CreateNotification :one
 insert into notifications (project_id, idempotency_key, title, body, data, target_spec)
 values ($1, $2, $3, $4, $5, $6)
+on conflict (project_id, idempotency_key) where idempotency_key is not null do nothing
 returning id, project_id, idempotency_key, title, body, data, target_spec, status, total_recipients, created_at, completed_at
 `
 
@@ -40,6 +41,9 @@ type CreateNotificationParams struct {
 	TargetSpec     []byte      `json:"target_spec"`
 }
 
+// Returns no rows on an idempotency-key conflict; the caller falls back to
+// GetNotificationByIdempotencyKey, same as InsertNotificationRecipient's
+// on-conflict-do-nothing + fallback-fetch pattern.
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
 	row := q.db.QueryRow(ctx, createNotification,
 		arg.ProjectID,

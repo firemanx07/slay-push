@@ -65,6 +65,7 @@ func requireInfra(t *testing.T) (*pgxpool.Pool, *asynq.Client, asynq.RedisConnOp
 		redisOpt, clientErr = queue.ParseRedisOpt(redisURL)
 		if clientErr == nil {
 			asynqClient = asynq.NewClient(redisOpt)
+			clientErr = asynqClient.Ping()
 		}
 	})
 	if poolErr != nil {
