@@ -223,8 +223,15 @@ func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	}
 	defer func() { _ = asynqClient.Close() }()
 
+	rdb, err := platform.NewRedisClient(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("connect redis: %w", err)
+	}
+	defer func() { _ = rdb.Close() }()
+
 	targetingRegistry := targeting.NewRegistry(queries)
 	handlers := dispatch.NewHandlers(queries, asynqClient, targetingRegistry, masterKey, logger)
+	handlers.OutboundLimiter = dispatch.NewOutboundRateLimiter(rdb, cfg.OutboundRateLimitRPS, logger)
 
 	redisOpt, err := queue.ParseRedisOpt(cfg.RedisURL)
 	if err != nil {

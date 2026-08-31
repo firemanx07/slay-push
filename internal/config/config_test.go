@@ -5,7 +5,7 @@ import "testing"
 func TestLoad_Defaults(t *testing.T) {
 	for _, key := range []string{
 		"APP_HTTP_ADDR", "DATABASE_URL", "REDIS_URL", "LOG_LEVEL", "LOG_FORMAT",
-		"SEQ_URL", "APP_MASTER_KEY", "DEFAULT_RATE_LIMIT_RPS", "APP_COOKIE_SECURE",
+		"SEQ_URL", "APP_MASTER_KEY", "DEFAULT_RATE_LIMIT_RPS", "DEFAULT_OUTBOUND_RATE_LIMIT_RPS", "APP_COOKIE_SECURE",
 	} {
 		t.Setenv(key, "")
 	}
@@ -36,6 +36,9 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.DefaultRateLimitRPS != 10 {
 		t.Errorf("DefaultRateLimitRPS = %d, want 10", cfg.DefaultRateLimitRPS)
 	}
+	if cfg.OutboundRateLimitRPS != 20 {
+		t.Errorf("OutboundRateLimitRPS = %d, want 20", cfg.OutboundRateLimitRPS)
+	}
 	if !cfg.CookieSecure {
 		t.Error("CookieSecure = false, want true (default)")
 	}
@@ -50,6 +53,7 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	t.Setenv("SEQ_URL", "http://seq:5341")
 	t.Setenv("APP_MASTER_KEY", "some-key")
 	t.Setenv("DEFAULT_RATE_LIMIT_RPS", "42")
+	t.Setenv("DEFAULT_OUTBOUND_RATE_LIMIT_RPS", "5")
 	t.Setenv("APP_COOKIE_SECURE", "false")
 
 	cfg := Load()
@@ -77,6 +81,9 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	}
 	if cfg.DefaultRateLimitRPS != 42 {
 		t.Errorf("DefaultRateLimitRPS = %d, want 42", cfg.DefaultRateLimitRPS)
+	}
+	if cfg.OutboundRateLimitRPS != 5 {
+		t.Errorf("OutboundRateLimitRPS = %d, want 5", cfg.OutboundRateLimitRPS)
 	}
 	if cfg.CookieSecure {
 		t.Error("CookieSecure = true, want false")
