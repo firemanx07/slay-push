@@ -1,8 +1,9 @@
-path_filters:
-  # sqlc-generated — do not hand-edit, no value in reviewing or checking
-  # docstring coverage on it. Mirrors codecov.yml's ignore list.
-  - "!internal/store/postgres/*.sql.go"
-  - "!internal/store/postgres/db.go"
-  - "!internal/store/postgres/models.go"
-  # templ-generated — same reasoning.
-  - "!internal/dashboard/templates/*_templ.go"
+reviews:
+  path_filters:
+    # sqlc-generated — do not hand-edit, no value in reviewing or checking
+    # docstring coverage on it. Mirrors codecov.yml's ignore list.
+    - "!internal/store/postgres/*.sql.go"
+    - "!internal/store/postgres/db.go"
+    - "!internal/store/postgres/models.go"
+    # templ-generated — same reasoning.
+    - "!internal/dashboard/templates/*_templ.go"
