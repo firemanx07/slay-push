@@ -21,10 +21,12 @@ integration code.
 
 ## Status
 
-MVP-complete: self-hostable, multi-tenant, all four providers, dashboard-managed credentials
-and API keys. See [CHANGELOG.md](CHANGELOG.md) and the phased roadmap below — the hardening
-pass (integration tests, load testing, provider setup docs) is the current focus; not yet
-recommended for production use until that lands.
+MVP-complete and through its hardening pass: self-hostable, multi-tenant, all four providers,
+dashboard-managed credentials and API keys, integration tests, per-provider outbound rate
+limiting, and a load-tested pipeline (see [Load Testing](https://firemanx07.github.io/slay-push/docs/load-testing/)).
+See [CHANGELOG.md](CHANGELOG.md) and the phased roadmap below. Early but functional — this is
+still a young project without a production track record yet, so run your own load test against
+your deployment and read [SECURITY.md](SECURITY.md) before trusting it with real traffic.
 
 ## Architecture
 
@@ -75,8 +77,9 @@ to stdout, so it plugs into whatever log stack you already run (Loki, ELK, Datad
 
 Only what's needed before the database is reachable lives in env vars (see `.env.example`).
 Provider credentials and API keys are configured from the dashboard after first-run setup and
-stored in Postgres. (Auth mode is local-only for now — no OIDC yet — and rate limits are a
-single global setting; both are on the roadmap below, not dashboard-configurable today.)
+stored in Postgres. (Auth mode is local-only for now — no OIDC yet, that's on the roadmap below —
+and rate limits, inbound and outbound alike, are global settings, not yet configurable from the
+dashboard or per-project.)
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -96,7 +99,7 @@ Phased MVP plan (each phase independently runnable/testable via `docker compose 
 - [x] 2. Multi-provider (Expo/APNs/HMS) + subscriber/device registry + group push
 - [x] 3. Multi-tenancy + API keys
 - [x] 4. Dashboard + local auth (MVP-complete point)
-- [ ] 5. Hardening pass (integration tests, load test, per-provider outbound rate limiting, docs) *(current)*
+- [x] 5. Hardening pass (integration tests, load test, per-provider outbound rate limiting, docs)
 
 Post-MVP: OIDC login, bulk device import (OneSignal migration), multi-role dashboard RBAC,
 encryption key rotation tooling, and — only once the self-hosted product has real usage — an

@@ -77,6 +77,8 @@ func main() {
 		err = runCreateAPIKey(cfg, logger, os.Args[2:])
 	case "bootstrap":
 		err = runBootstrap(cfg, logger)
+	case "loadtest":
+		err = runLoadTest(cfg, logger, os.Args[2:])
 	case "rotate-key":
 		err = errors.New("rotate-key: not yet implemented")
 	default:
@@ -91,7 +93,7 @@ func main() {
 }
 
 func usage() string {
-	return "usage: server <serve-all|serve-api|serve-dashboard|worker|migrate|healthcheck|seed-credential|create-project|create-api-key|bootstrap|rotate-key>"
+	return "usage: server <serve-all|serve-api|serve-dashboard|worker|migrate|healthcheck|seed-credential|create-project|create-api-key|bootstrap|loadtest|rotate-key>"
 }
 
 // runHealthcheckProbe lets `docker compose healthcheck:` call the binary
@@ -249,7 +251,14 @@ func runWorker(cfg config.Config, logger zerolog.Logger) error {
 	srv := asynq.NewServer(redisOpt, asynq.Config{
 		Queues:         queues,
 		RetryDelayFunc: queue.RetryDelayFunc,
+		IsFailure:      queue.IsFailure,
 		Logger:         asynqZerologAdapter{logger},
+		// asynq's 5s default only promotes due retry/scheduled tasks to
+		// "pending" once per interval — far coarser than the outbound rate
+		// limiter's own sub-second RetryAfter, so a throttled backlog drains
+		// much slower than the configured RPS would suggest. Found via load
+		// testing (docs/content/docs/load-testing.md).
+		DelayedTaskCheckInterval: 500 * time.Millisecond,
 	})
 
 	logger.Info().Strs("providers", supportedProviders).Msg("worker: listening on fanout + per-provider send queues")

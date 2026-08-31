@@ -106,3 +106,15 @@ func RetryDelayFunc(n int, err error, task *asynq.Task) time.Duration {
 	}
 	return asynq.DefaultRetryDelayFunc(n, err, task)
 }
+
+// IsFailure reports whether err should count against a task's MaxRetry
+// budget. A *ThrottledError — whether provider-reported or this service's
+// own proactive outbound rate limit — is not a failure, just a "not yet":
+// asynq's retried counter only advances when this returns true, so a
+// throttled task can be retried indefinitely as capacity frees up, rather
+// than being silently abandoned once MaxRetry is exhausted purely from
+// waiting its turn behind a large backlog sharing the same ceiling.
+func IsFailure(err error) bool {
+	var te *ThrottledError
+	return !errors.As(err, &te)
+}

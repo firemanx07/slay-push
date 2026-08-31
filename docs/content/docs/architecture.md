@@ -65,8 +65,10 @@ evidence of the same physical device (a user with two phones would get one wrong
 `POST /api/v1/notifications` never resolves an audience or calls a provider in the request path —
 it inserts a `pending` row and enqueues one job. A separate `worker` process resolves targeting
 and dispatches to providers, with per-provider queues so a slow or down provider never blocks the
-others, retry/backoff on transient failures, and an idempotency anchor
-(`notification_id, device_id`) so a retried enqueue can't create a duplicate recipient row.
+others, retry/backoff on transient failures, an idempotency anchor
+(`notification_id, device_id`) so a retried enqueue can't create a duplicate recipient row, and a
+Redis-backed rate limit on outbound sends per `(project, provider)` pair — protecting a project's
+own FCM/APNs/Expo/HMS account from a large fanout burst tripping the provider's own throttling.
 Delivery itself is at-least-once, not exactly-once: a crash between a provider accepting a push
 and the recipient row being marked sent can still result in a duplicate push on retry — no
 provider offers a true idempotency key for this. See [SECURITY.md](https://github.com/firemanx07/slay-push/blob/main/SECURITY.md)
