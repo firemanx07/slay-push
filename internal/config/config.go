@@ -12,30 +12,32 @@ import (
 
 // Config holds process configuration loaded from environment variables.
 type Config struct {
-	HTTPAddr            string
-	DatabaseURL         string
-	RedisURL            string
-	LogLevel            string
-	LogFormat           string // "json" (default, prod) or "seq" (dev-only)
-	SeqURL              string // only consulted when LogFormat == "seq"
-	MasterKey           string // APP_MASTER_KEY, AES-256-GCM key for secrets at rest (base64, 32 bytes decoded)
-	DefaultRateLimitRPS int    // per API key; per-project ceiling is 5x this
-	CookieSecure        bool   // APP_COOKIE_SECURE; false only for local plain-HTTP dev
+	HTTPAddr             string
+	DatabaseURL          string
+	RedisURL             string
+	LogLevel             string
+	LogFormat            string // "json" (default, prod) or "seq" (dev-only)
+	SeqURL               string // only consulted when LogFormat == "seq"
+	MasterKey            string // APP_MASTER_KEY, AES-256-GCM key for secrets at rest (base64, 32 bytes decoded)
+	DefaultRateLimitRPS  int    // per API key; per-project ceiling is 5x this
+	OutboundRateLimitRPS int    // per (project, provider); protects a project's own provider account from a large-fanout burst
+	CookieSecure         bool   // APP_COOKIE_SECURE; false only for local plain-HTTP dev
 }
 
 // Load reads configuration from environment variables, applying defaults
 // for anything unset.
 func Load() Config {
 	return Config{
-		HTTPAddr:            getEnv("APP_HTTP_ADDR", ":8080"),
-		DatabaseURL:         getEnv("DATABASE_URL", "postgres://pushdispatch:pushdispatch@localhost:5432/pushdispatch?sslmode=disable"),
-		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379/0"),
-		LogLevel:            getEnv("LOG_LEVEL", "info"),
-		LogFormat:           getEnv("LOG_FORMAT", "json"),
-		SeqURL:              getEnv("SEQ_URL", ""),
-		MasterKey:           os.Getenv("APP_MASTER_KEY"),
-		DefaultRateLimitRPS: getEnvInt("DEFAULT_RATE_LIMIT_RPS", 10),
-		CookieSecure:        getEnvBool("APP_COOKIE_SECURE", true),
+		HTTPAddr:             getEnv("APP_HTTP_ADDR", ":8080"),
+		DatabaseURL:          getEnv("DATABASE_URL", "postgres://pushdispatch:pushdispatch@localhost:5432/pushdispatch?sslmode=disable"),
+		RedisURL:             getEnv("REDIS_URL", "redis://localhost:6379/0"),
+		LogLevel:             getEnv("LOG_LEVEL", "info"),
+		LogFormat:            getEnv("LOG_FORMAT", "json"),
+		SeqURL:               getEnv("SEQ_URL", ""),
+		MasterKey:            os.Getenv("APP_MASTER_KEY"),
+		DefaultRateLimitRPS:  getEnvInt("DEFAULT_RATE_LIMIT_RPS", 10),
+		OutboundRateLimitRPS: getEnvInt("DEFAULT_OUTBOUND_RATE_LIMIT_RPS", 20),
+		CookieSecure:         getEnvBool("APP_COOKIE_SECURE", true),
 	}
 }
 
@@ -74,6 +76,9 @@ func (c Config) Validate() error {
 	}
 	if c.LogFormat == "seq" && c.SeqURL == "" {
 		return fmt.Errorf("SEQ_URL is required when LOG_FORMAT=seq")
+	}
+	if c.OutboundRateLimitRPS <= 0 {
+		return fmt.Errorf("DEFAULT_OUTBOUND_RATE_LIMIT_RPS must be positive, got %d", c.OutboundRateLimitRPS)
 	}
 	return nil
 }

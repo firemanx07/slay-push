@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"github.com/rs/zerolog"
 
 	"github.com/firemanx07/slay-push/internal/provider"
 	"github.com/firemanx07/slay-push/internal/queue"
@@ -279,5 +280,67 @@ func TestHandleSend_Throttled(t *testing.T) {
 	}
 	if terminalRecipientStatuses[got.Status] {
 		t.Errorf("recipient status = %q, want a non-terminal status after a throttled attempt", got.Status)
+	}
+}
+
+func TestHandleSend_OutboundRateLimited(t *testing.T) {
+	h := newTestHarness(t)
+	ctx := context.Background()
+	projectID := postgres.UUIDTo(h.project.ID)
+
+	token := "expo-tok-" + uuid.NewString()
+	device := mustCreateDevice(t, ctx, h.queries, projectID, token)
+	mustCreateCredential(t, ctx, h.queries, h.handlers.Crypto, projectID)
+	testAdapter.Program(token, fakeStep{result: provider.SendResult{Status: provider.StatusSent}})
+
+	rdb := newRawRedisClient(t)
+	limiter := NewOutboundRateLimiter(rdb, 1, zerolog.Nop())
+	h.handlers.OutboundLimiter = limiter
+
+	n, err := h.handlers.CreateNotification(ctx, projectID, CreateNotificationRequest{DeviceIDs: []uuid.UUID{postgres.UUIDTo(device.ID)}})
+	if err != nil {
+		t.Fatalf("CreateNotification: %v", err)
+	}
+	if err := h.handlers.HandleFanout(ctx, queue.FanoutPayload{NotificationID: postgres.UUIDTo(n.ID), ProjectID: projectID}); err != nil {
+		t.Fatalf("HandleFanout: %v", err)
+	}
+	recipient, err := h.queries.GetRecipientByNotificationAndDevice(ctx, postgres.GetRecipientByNotificationAndDeviceParams{
+		NotificationID: n.ID, DeviceID: device.ID,
+	})
+	if err != nil {
+		t.Fatalf("GetRecipientByNotificationAndDevice: %v", err)
+	}
+	cleanupSendTask(t, h.redisOpt, postgres.UUIDTo(recipient.ID))
+
+	// Pre-exhaust the single (project, "expo") slot immediately before
+	// HandleSend — redis_rate.PerSecond(1) resets after one second, and the
+	// DB/Redis work above (fanout, notification lookup) could in principle
+	// eat into that window on a loaded machine.
+	if allowed, _ := limiter.Allow(ctx, projectID, "expo"); !allowed {
+		t.Fatal("pre-exhausting call: Allow() = false, want true")
+	}
+
+	err = h.handlers.HandleSend(ctx, queue.SendPayload{
+		NotificationID: postgres.UUIDTo(n.ID), RecipientID: postgres.UUIDTo(recipient.ID),
+		DeviceID: postgres.UUIDTo(device.ID), ProjectID: projectID, ProviderType: "expo", Token: token,
+	})
+	if err == nil {
+		t.Fatal("expected a *queue.ThrottledError")
+	}
+	var te *queue.ThrottledError
+	if !errors.As(err, &te) {
+		t.Fatalf("error type = %T, want *queue.ThrottledError", err)
+	}
+
+	if got := testAdapter.CallCount(token); got != 0 {
+		t.Errorf("adapter was called %d time(s), want 0 (rate-limited before ever reaching the provider)", got)
+	}
+
+	got, err := h.queries.GetNotificationRecipient(ctx, recipient.ID)
+	if err != nil {
+		t.Fatalf("GetNotificationRecipient: %v", err)
+	}
+	if got.Status != "queued" {
+		t.Errorf("recipient status = %q, want %q (rate-limited before MarkRecipientSending ran)", got.Status, "queued")
 	}
 }

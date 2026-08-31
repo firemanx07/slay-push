@@ -24,6 +24,12 @@ type Handlers struct {
 	Targeting *targeting.Registry
 	Crypto    crypto.MasterKey
 	Logger    zerolog.Logger
+
+	// OutboundLimiter, if set, caps HandleSend's rate of calls to each
+	// provider on behalf of each project. Only meaningful in the worker
+	// process — the HTTP layer never calls HandleSend — so it's left unset
+	// there rather than added to NewHandlers's required parameters.
+	OutboundLimiter *OutboundRateLimiter
 }
 
 // NewHandlers builds a Handlers from its dependencies.

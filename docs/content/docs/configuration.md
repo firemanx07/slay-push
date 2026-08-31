@@ -22,6 +22,7 @@ mapping. Everything else is read directly by the Go binary (`internal/config`).
 | `APP_MASTER_KEY` | *(none)* | App | AES-256-GCM key encrypting provider credentials at rest. **Losing it makes stored credentials unrecoverable.** Generate with `openssl rand -base64 32`. |
 | `APP_COOKIE_SECURE` | `true` | App | Marks the dashboard session cookie HTTPS-only. Set to `false` only for local plain-HTTP development. |
 | `DEFAULT_RATE_LIMIT_RPS` | `10` | App | Per-API-key rate limit; the per-project ceiling is 5x this. |
+| `DEFAULT_OUTBOUND_RATE_LIMIT_RPS` | `20` | App | Per-project, per-provider ceiling on outbound sends — protects a project's own FCM/APNs/Expo/HMS account from being throttled or banned by a large fanout burst. A conservative starting default; tune it against your own provider account's real limits. |
 | `LOG_FORMAT` | `json` | App | `seq` is only meaningful with the dev compose overlay. |
 | `LOG_LEVEL` | `info` | App | |
 | `SEQ_URL` | *(none)* | App | Only read when `LOG_FORMAT=seq`. |

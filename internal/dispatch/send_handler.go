@@ -29,6 +29,15 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		return nil
 	}
 
+	if h.OutboundLimiter != nil {
+		if allowed, retryAfter := h.OutboundLimiter.Allow(ctx, payload.ProjectID, payload.ProviderType); !allowed {
+			return &queue.ThrottledError{
+				RetryAfter: retryAfter,
+				Err:        fmt.Errorf("outbound rate limit exceeded for project %s provider %s", payload.ProjectID, payload.ProviderType),
+			}
+		}
+	}
+
 	if _, err := h.DB.MarkRecipientSending(ctx, recipientID); err != nil {
 		return fmt.Errorf("mark recipient sending: %w", err)
 	}

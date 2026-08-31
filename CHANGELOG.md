@@ -5,6 +5,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- Phase 5 hardening: per-provider outbound rate limiting. The worker now caps how fast it calls
+  out to each provider (`internal/dispatch.OutboundRateLimiter`, `DEFAULT_OUTBOUND_RATE_LIMIT_RPS`,
+  default 20), scoped per `(project, provider)` pair rather than globally — each project has its
+  own encrypted provider credentials, so one tenant's fanout burst must never throttle another's
+  sends. A rate-limited attempt returns the same `queue.ThrottledError` the existing
+  provider-reported-429 path already used, so it flows through the same retry/backoff machinery
+  rather than needing new plumbing. Fails open on a Redis error, matching
+  `internal/apikey.RateLimiter`'s existing policy for inbound limits.
+
 ### Changed
 - Settled on the Apache License 2.0 for `LICENSE`, replacing the earlier Business Source
   License 1.1 draft. Source-available licenses (BSL, Elastic License 2.0, Sentry's Functional

@@ -5,7 +5,7 @@ import "testing"
 func TestLoad_Defaults(t *testing.T) {
 	for _, key := range []string{
 		"APP_HTTP_ADDR", "DATABASE_URL", "REDIS_URL", "LOG_LEVEL", "LOG_FORMAT",
-		"SEQ_URL", "APP_MASTER_KEY", "DEFAULT_RATE_LIMIT_RPS", "APP_COOKIE_SECURE",
+		"SEQ_URL", "APP_MASTER_KEY", "DEFAULT_RATE_LIMIT_RPS", "DEFAULT_OUTBOUND_RATE_LIMIT_RPS", "APP_COOKIE_SECURE",
 	} {
 		t.Setenv(key, "")
 	}
@@ -36,6 +36,9 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.DefaultRateLimitRPS != 10 {
 		t.Errorf("DefaultRateLimitRPS = %d, want 10", cfg.DefaultRateLimitRPS)
 	}
+	if cfg.OutboundRateLimitRPS != 20 {
+		t.Errorf("OutboundRateLimitRPS = %d, want 20", cfg.OutboundRateLimitRPS)
+	}
 	if !cfg.CookieSecure {
 		t.Error("CookieSecure = false, want true (default)")
 	}
@@ -50,6 +53,7 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	t.Setenv("SEQ_URL", "http://seq:5341")
 	t.Setenv("APP_MASTER_KEY", "some-key")
 	t.Setenv("DEFAULT_RATE_LIMIT_RPS", "42")
+	t.Setenv("DEFAULT_OUTBOUND_RATE_LIMIT_RPS", "5")
 	t.Setenv("APP_COOKIE_SECURE", "false")
 
 	cfg := Load()
@@ -78,6 +82,9 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	if cfg.DefaultRateLimitRPS != 42 {
 		t.Errorf("DefaultRateLimitRPS = %d, want 42", cfg.DefaultRateLimitRPS)
 	}
+	if cfg.OutboundRateLimitRPS != 5 {
+		t.Errorf("OutboundRateLimitRPS = %d, want 5", cfg.OutboundRateLimitRPS)
+	}
 	if cfg.CookieSecure {
 		t.Error("CookieSecure = true, want false")
 	}
@@ -89,10 +96,12 @@ func TestConfig_Validate(t *testing.T) {
 		cfg     Config
 		wantErr bool
 	}{
-		{"json format, no seq url needed", Config{LogFormat: "json"}, false},
-		{"seq format with seq url", Config{LogFormat: "seq", SeqURL: "http://seq:5341"}, false},
-		{"seq format without seq url", Config{LogFormat: "seq"}, true},
-		{"invalid format", Config{LogFormat: "xml"}, true},
+		{"json format, no seq url needed", Config{LogFormat: "json", OutboundRateLimitRPS: 20}, false},
+		{"seq format with seq url", Config{LogFormat: "seq", SeqURL: "http://seq:5341", OutboundRateLimitRPS: 20}, false},
+		{"seq format without seq url", Config{LogFormat: "seq", OutboundRateLimitRPS: 20}, true},
+		{"invalid format", Config{LogFormat: "xml", OutboundRateLimitRPS: 20}, true},
+		{"zero outbound rate limit", Config{LogFormat: "json", OutboundRateLimitRPS: 0}, true},
+		{"negative outbound rate limit", Config{LogFormat: "json", OutboundRateLimitRPS: -1}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
