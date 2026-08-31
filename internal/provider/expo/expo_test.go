@@ -16,6 +16,12 @@ func newTestAdapter(server *httptest.Server) *adapter {
 	return a
 }
 
+func TestName(t *testing.T) {
+	if got := New().Name(); got != "expo" {
+		t.Errorf("Name() = %q, want %q", got, "expo")
+	}
+}
+
 func TestSend_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var msgs []message
@@ -98,6 +104,82 @@ func TestSend_ServerError(t *testing.T) {
 	result, _ := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{Token: "tok"})
 	if result.Status != provider.StatusTransientError {
 		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestSend_ConnectionError(t *testing.T) {
+	a := New().(*adapter)
+	a.baseURL = "http://127.0.0.1:1" // nothing listens here — connection refused
+
+	result, err := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a connection error")
+	}
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestSend_MalformedResponseBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{not json`))
+	}))
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	_, err := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a parse error for a malformed response body")
+	}
+}
+
+func TestSend_RequestLevelErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"errors":[{"code":"BAD_REQUEST","message":"invalid request"}]}`))
+	}))
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	result, _ := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{Token: "tok"})
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestSend_EmptyResponseData(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	_, err := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected an error for empty response data")
+	}
+}
+
+func TestClassifyTicket_UnknownErrorDetail(t *testing.T) {
+	result := classifyTicket(ticket{Status: "error", Message: "something else went wrong"})
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestClassifyTicket_UnknownStatus(t *testing.T) {
+	result := classifyTicket(ticket{Status: "pending"})
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestRetryAfter_NoHeader(t *testing.T) {
+	resp := &http.Response{Header: http.Header{}}
+	if got := retryAfter(resp); got != 0 {
+		t.Errorf("retryAfter = %v, want 0", got)
 	}
 }
 

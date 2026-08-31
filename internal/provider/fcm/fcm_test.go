@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -222,5 +223,155 @@ func TestTestCredential_InvalidCredential(t *testing.T) {
 	a := New().(*adapter)
 	if err := a.TestCredential(context.Background(), []byte(`{}`)); err == nil {
 		t.Fatal("expected error for credential missing project_id")
+	}
+}
+
+func TestName(t *testing.T) {
+	if got := New().Name(); got != "fcm" {
+		t.Errorf("Name() = %q, want %q", got, "fcm")
+	}
+}
+
+// newInvalidKeyCredential has a valid project_id (so field validation
+// passes) but a private_key that can't be parsed, to exercise
+// tokenSourceFor's own error path (distinct from the field-validation
+// error path already covered above).
+func newInvalidKeyCredential(t *testing.T, tokenURL string) []byte {
+	t.Helper()
+	cred := map[string]string{
+		"type":         "service_account",
+		"project_id":   "test-project",
+		"private_key":  "not a valid pem key",
+		"client_email": "test@test-project.iam.gserviceaccount.com",
+		"token_uri":    tokenURL,
+	}
+	b, err := json.Marshal(cred)
+	if err != nil {
+		t.Fatalf("marshal credential: %v", err)
+	}
+	return b
+}
+
+func TestSend_MissingProjectID(t *testing.T) {
+	a := New().(*adapter)
+	_, err := a.Send(context.Background(), []byte(`{}`), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected error for credential missing project_id")
+	}
+}
+
+func TestSend_InvalidPrivateKey(t *testing.T) {
+	a := New().(*adapter)
+	cred := newInvalidKeyCredential(t, "http://unused")
+	_, err := a.Send(context.Background(), cred, provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected error for an unparseable private key")
+	}
+}
+
+func TestTestCredential_InvalidPrivateKey(t *testing.T) {
+	a := New().(*adapter)
+	cred := newInvalidKeyCredential(t, "http://unused")
+	if err := a.TestCredential(context.Background(), cred); err == nil {
+		t.Fatal("expected error for an unparseable private key")
+	}
+}
+
+func TestSend_TokenFetchError(t *testing.T) {
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+	}))
+	defer tokenServer.Close()
+
+	a := New().(*adapter)
+	cred := newTestCredential(t, tokenServer.URL)
+	_, err := a.Send(context.Background(), cred, provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected error when the oauth2 token endpoint fails")
+	}
+}
+
+func TestTestCredential_TokenFetchError(t *testing.T) {
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+	}))
+	defer tokenServer.Close()
+
+	a := New().(*adapter)
+	cred := newTestCredential(t, tokenServer.URL)
+	if err := a.TestCredential(context.Background(), cred); err == nil {
+		t.Fatal("expected error when the oauth2 token endpoint fails")
+	}
+}
+
+func TestSend_ConnectionError(t *testing.T) {
+	tokenServer := newTestServer(t)
+	defer tokenServer.Close()
+
+	a := New().(*adapter)
+	a.baseURL = "http://127.0.0.1:1" // nothing listens here — connection refused
+	cred := newTestCredential(t, tokenServer.URL+"/token")
+
+	result, err := a.Send(context.Background(), cred, provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a connection error")
+	}
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestSend_MalformedSuccessResponse(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"fake-access-token","token_type":"Bearer","expires_in":3600}`))
+	})
+	mux.HandleFunc("/v1/projects/test-project/messages:send", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{not json`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	cred := newTestCredential(t, server.URL+"/token")
+	_, err := a.Send(context.Background(), cred, provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a parse error for a malformed success response")
+	}
+}
+
+func TestClassifyError_BadRequestInvalidArgument(t *testing.T) {
+	resp := &http.Response{StatusCode: http.StatusBadRequest, Header: http.Header{}}
+	body := []byte(`{"error":{"code":400,"message":"bad token","status":"INVALID_ARGUMENT","details":[{"errorCode":"INVALID_ARGUMENT"}]}}`)
+	result := classifyError(resp, body)
+	if result.Status != provider.StatusInvalidToken {
+		t.Errorf("status = %v, want StatusInvalidToken", result.Status)
+	}
+}
+
+func TestClassifyError_DefaultBranch(t *testing.T) {
+	resp := &http.Response{StatusCode: http.StatusForbidden, Header: http.Header{}}
+	body := []byte(`{"error":{"code":403,"message":"forbidden","status":"PERMISSION_DENIED"}}`)
+	result := classifyError(resp, body)
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestRetryAfter_NoHeader(t *testing.T) {
+	resp := &http.Response{Header: http.Header{}}
+	if got := retryAfter(resp); got != 0 {
+		t.Errorf("retryAfter = %v, want 0", got)
+	}
+}
+
+func TestStringifyData_MarshalError(t *testing.T) {
+	out := stringifyData(map[string]any{"bad": math.NaN()})
+	if out["bad"] == "" {
+		t.Error("expected a fallback fmt.Sprintf value for a value json.Marshal can't encode")
 	}
 }
