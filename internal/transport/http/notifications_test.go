@@ -15,13 +15,7 @@ import (
 )
 
 func newNotificationRequest(ctx context.Context, method, path string, projectID uuid.UUID, body string) *http.Request {
-	var bodyReader *strings.Reader
-	if body == "" {
-		bodyReader = strings.NewReader("")
-	} else {
-		bodyReader = strings.NewReader(body)
-	}
-	return httptest.NewRequestWithContext(contextWithProjectID(ctx, projectID), method, path, bodyReader)
+	return httptest.NewRequestWithContext(contextWithProjectID(ctx, projectID), method, path, strings.NewReader(body))
 }
 
 // withChiParam attaches the chi "id" URL param the way the router would,
@@ -52,6 +46,9 @@ func TestHandleCreateNotification_Validation(t *testing.T) {
 		{"title too long", `{"include_player_ids":["` + deviceID + `"],"title":"` + strings.Repeat("a", maxTitleLength+1) + `"}`},
 		{"body too long", `{"include_player_ids":["` + deviceID + `"],"body":"` + strings.Repeat("a", maxBodyLength+1) + `"}`},
 		{"idempotency_key too long", `{"include_player_ids":["` + deviceID + `"],"idempotency_key":"` + strings.Repeat("a", maxIdempotencyKeyLength+1) + `"}`},
+		{"too many include_player_ids", `{"include_player_ids":[` + strings.TrimSuffix(strings.Repeat(`"`+deviceID+`",`, maxDeviceIDsPerRequest+1), ",") + `]}`},
+		{"too many include_external_user_ids", `{"include_external_user_ids":[` + strings.TrimSuffix(strings.Repeat(`"u1",`, maxDeviceIDsPerRequest+1), ",") + `]}`},
+		{"data too large", `{"include_player_ids":["` + deviceID + `"],"data":{"blob":"` + strings.Repeat("a", maxDataBytes) + `"}}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -89,6 +86,29 @@ func TestHandleCreateNotification_Success(t *testing.T) {
 	}
 	if _, err := uuid.Parse(resp.ID); err != nil {
 		t.Errorf("response id %q is not a valid UUID: %v", resp.ID, err)
+	}
+}
+
+func TestHandleCreateNotification_SuccessViaExternalUserIDs(t *testing.T) {
+	h := newTestHarness(t)
+	ctx := context.Background()
+	projectID := postgres.UUIDTo(h.project.ID)
+	externalUserID := "user-" + uuid.NewString()
+
+	if _, err := h.queries.UpsertSubscriber(ctx, postgres.UpsertSubscriberParams{
+		ProjectID:  postgres.UUIDFrom(projectID),
+		ExternalID: externalUserID,
+	}); err != nil {
+		t.Fatalf("create test subscriber: %v", err)
+	}
+
+	body := `{"include_external_user_ids":["` + externalUserID + `"],"title":"hi","body":"there"}`
+	req := newNotificationRequest(ctx, http.MethodPost, "/api/v1/notifications", projectID, body)
+	w := httptest.NewRecorder()
+	h.server.handleCreateNotification(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body: %s", w.Code, http.StatusAccepted, w.Body.String())
 	}
 }
 
