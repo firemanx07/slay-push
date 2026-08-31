@@ -77,5 +77,8 @@ func (c Config) Validate() error {
 	if c.LogFormat == "seq" && c.SeqURL == "" {
 		return fmt.Errorf("SEQ_URL is required when LOG_FORMAT=seq")
 	}
+	if c.OutboundRateLimitRPS <= 0 {
+		return fmt.Errorf("DEFAULT_OUTBOUND_RATE_LIMIT_RPS must be positive, got %d", c.OutboundRateLimitRPS)
+	}
 	return nil
 }

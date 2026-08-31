@@ -295,11 +295,6 @@ func TestHandleSend_OutboundRateLimited(t *testing.T) {
 
 	rdb := newRawRedisClient(t)
 	limiter := NewOutboundRateLimiter(rdb, 1, zerolog.Nop())
-	// Pre-exhaust the single (project, "expo") slot directly, so HandleSend's
-	// own check is guaranteed to see the ceiling already tripped.
-	if allowed, _ := limiter.Allow(ctx, projectID, "expo"); !allowed {
-		t.Fatal("pre-exhausting call: Allow() = false, want true")
-	}
 	h.handlers.OutboundLimiter = limiter
 
 	n, err := h.handlers.CreateNotification(ctx, projectID, CreateNotificationRequest{DeviceIDs: []uuid.UUID{postgres.UUIDTo(device.ID)}})
@@ -316,6 +311,14 @@ func TestHandleSend_OutboundRateLimited(t *testing.T) {
 		t.Fatalf("GetRecipientByNotificationAndDevice: %v", err)
 	}
 	cleanupSendTask(t, h.redisOpt, postgres.UUIDTo(recipient.ID))
+
+	// Pre-exhaust the single (project, "expo") slot immediately before
+	// HandleSend — redis_rate.PerSecond(1) resets after one second, and the
+	// DB/Redis work above (fanout, notification lookup) could in principle
+	// eat into that window on a loaded machine.
+	if allowed, _ := limiter.Allow(ctx, projectID, "expo"); !allowed {
+		t.Fatal("pre-exhausting call: Allow() = false, want true")
+	}
 
 	err = h.handlers.HandleSend(ctx, queue.SendPayload{
 		NotificationID: postgres.UUIDTo(n.ID), RecipientID: postgres.UUIDTo(recipient.ID),

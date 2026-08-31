@@ -96,10 +96,12 @@ func TestConfig_Validate(t *testing.T) {
 		cfg     Config
 		wantErr bool
 	}{
-		{"json format, no seq url needed", Config{LogFormat: "json"}, false},
-		{"seq format with seq url", Config{LogFormat: "seq", SeqURL: "http://seq:5341"}, false},
-		{"seq format without seq url", Config{LogFormat: "seq"}, true},
-		{"invalid format", Config{LogFormat: "xml"}, true},
+		{"json format, no seq url needed", Config{LogFormat: "json", OutboundRateLimitRPS: 20}, false},
+		{"seq format with seq url", Config{LogFormat: "seq", SeqURL: "http://seq:5341", OutboundRateLimitRPS: 20}, false},
+		{"seq format without seq url", Config{LogFormat: "seq", OutboundRateLimitRPS: 20}, true},
+		{"invalid format", Config{LogFormat: "xml", OutboundRateLimitRPS: 20}, true},
+		{"zero outbound rate limit", Config{LogFormat: "json", OutboundRateLimitRPS: 0}, true},
+		{"negative outbound rate limit", Config{LogFormat: "json", OutboundRateLimitRPS: -1}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
