@@ -41,6 +41,11 @@ dashboard or API availability, and so it can be scaled independently of `app`:
 docker compose -f deploy/docker/docker-compose.yml up -d --scale worker=3
 ```
 
+The outbound rate limiter's state lives in Redis, not in each worker process's memory, so scaling
+to multiple replicas correctly shares one aggregate ceiling per `(project, provider)` pair —
+replicas don't each get an independent budget that would silently multiply the configured
+`DEFAULT_OUTBOUND_RATE_LIMIT_RPS`.
+
 ## Bootstrap without the setup wizard
 
 For scripted deployments (CI, infrastructure-as-code), the `bootstrap` CLI subcommand creates the
