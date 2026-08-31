@@ -3,6 +3,7 @@ package queue
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"testing"
@@ -65,6 +66,28 @@ func TestThrottledError(t *testing.T) {
 	if !errors.Is(te, inner) {
 		t.Error("errors.Is(te, inner) = false, want true (Unwrap should expose the wrapped error)")
 	}
+}
+
+func TestIsFailure(t *testing.T) {
+	t.Run("ThrottledError is not a failure", func(t *testing.T) {
+		err := &ThrottledError{RetryAfter: time.Second, Err: errors.New("throttled")}
+		if IsFailure(err) {
+			t.Error("IsFailure(ThrottledError) = true, want false — must not count against MaxRetry")
+		}
+	})
+
+	t.Run("wrapped ThrottledError is still not a failure", func(t *testing.T) {
+		err := fmt.Errorf("wrapped: %w", &ThrottledError{RetryAfter: time.Second, Err: errors.New("throttled")})
+		if IsFailure(err) {
+			t.Error("IsFailure(wrapped ThrottledError) = true, want false")
+		}
+	})
+
+	t.Run("other errors are failures", func(t *testing.T) {
+		if !IsFailure(errors.New("transient send error")) {
+			t.Error("IsFailure(plain error) = false, want true")
+		}
+	})
 }
 
 func TestNewClient(t *testing.T) {
