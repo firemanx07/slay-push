@@ -36,6 +36,12 @@ func newTestRedisClient(t *testing.T) *redis.Client {
 	if err != nil {
 		t.Fatalf("NewRedisClient: %v", err)
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
+		t.Skipf("redis unreachable (set REDIS_URL to run): %v", err)
+	}
 	t.Cleanup(func() { _ = client.Close() })
 	return client
 }

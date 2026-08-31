@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 
 	"github.com/firemanx07/slay-push/internal/provider"
 	"github.com/firemanx07/slay-push/internal/queue"
@@ -204,6 +205,15 @@ func TestHandleSend_UnknownProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecipientByNotificationAndDevice: %v", err)
 	}
+	// HandleFanout above enqueued a send:fcm task (cleanupSendTask only
+	// covers send:expo) — the direct HandleSend call below never consumes
+	// it, so it'd otherwise sit in shared Redis and could be picked up by
+	// a real worker later, retrying against this test's rolled-back data.
+	t.Cleanup(func() {
+		inspector := asynq.NewInspector(h.redisOpt)
+		defer func() { _ = inspector.Close() }()
+		_ = inspector.DeleteTask(queue.SendTypeFor(fakeProviderType), postgres.UUIDTo(recipient.ID).String())
+	})
 
 	err = h.handlers.HandleSend(ctx, queue.SendPayload{
 		NotificationID: postgres.UUIDTo(n.ID), RecipientID: postgres.UUIDTo(recipient.ID),

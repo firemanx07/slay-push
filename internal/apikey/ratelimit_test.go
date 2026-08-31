@@ -2,6 +2,7 @@ package apikey
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -9,11 +10,15 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const testRedisURL = "redis://localhost:6379"
+const defaultTestRedisURL = "redis://localhost:6379"
 
 func newTestRedisClient(t *testing.T) *redis.Client {
 	t.Helper()
-	opts, err := redis.ParseURL(testRedisURL)
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = defaultTestRedisURL
+	}
+	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		t.Fatalf("parse redis url: %v", err)
 	}
