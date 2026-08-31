@@ -3,6 +3,7 @@ package hms
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -144,6 +145,169 @@ func TestTestCredential_InvalidCredential(t *testing.T) {
 	}
 }
 
+func TestName(t *testing.T) {
+	if got := New().Name(); got != "hms" {
+		t.Errorf("Name() = %q, want %q", got, "hms")
+	}
+}
+
+func TestSend_TokenFetchConnectionError(t *testing.T) {
+	a := New().(*adapter)
+	a.tokenURL = "http://127.0.0.1:1" // nothing listens here — connection refused
+
+	_, err := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a connection error fetching the oauth2 token")
+	}
+}
+
+func TestSend_TokenFetchNon200(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid_client"}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	_, err := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected error when the oauth2 token endpoint returns non-200")
+	}
+}
+
+func TestSend_TokenFetchMalformedResponse(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{not json`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	_, err := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected error when the oauth2 token response body is malformed")
+	}
+}
+
+func TestSend_ConnectionError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"fake-token","token_type":"Bearer","expires_in":3600}`))
+	})
+	tokenServer := httptest.NewServer(mux)
+	defer tokenServer.Close()
+
+	a := New().(*adapter)
+	a.tokenURL = tokenServer.URL + "/token"
+	a.baseURL = "http://127.0.0.1:1" // nothing listens here — connection refused
+
+	result, err := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a connection error")
+	}
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestSend_RateLimited(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"fake-token","token_type":"Bearer","expires_in":3600}`))
+	})
+	mux.HandleFunc("/v1/test-app/messages:send", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "20")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"code":"80100000","msg":"rate limited"}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	result, _ := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if result.Status != provider.StatusThrottled {
+		t.Errorf("status = %v, want StatusThrottled", result.Status)
+	}
+	if result.RetryAfter.Seconds() != 20 {
+		t.Errorf("RetryAfter = %v, want 20s", result.RetryAfter)
+	}
+}
+
+func TestSend_UnexpectedHTTPStatus(t *testing.T) {
+	server := newTestServerWithStatus(t, http.StatusServiceUnavailable, `{"code":"","msg":"unavailable"}`)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	result, _ := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestSend_MalformedSendResponse(t *testing.T) {
+	server := newTestServerWithStatus(t, http.StatusOK, `{not json`)
+	defer server.Close()
+
+	a := newTestAdapter(server)
+	_, err := a.Send(context.Background(), newTestCredential(), provider.SendRequest{Token: "tok"})
+	if err == nil {
+		t.Fatal("expected a parse error for a malformed send response")
+	}
+}
+
+func TestClassify_SomeTokensIllegal(t *testing.T) {
+	a := New().(*adapter)
+	result := a.classify(newTestCredential(), sendResponse{Code: codeSomeTokensIllegal, Msg: "illegal"})
+	if result.Status != provider.StatusInvalidToken {
+		t.Errorf("status = %v, want StatusInvalidToken", result.Status)
+	}
+}
+
+func TestClassify_OAuthAuthError(t *testing.T) {
+	a := New().(*adapter)
+	result := a.classify(newTestCredential(), sendResponse{Code: codeOAuthAuthError, Msg: "bad auth"})
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestClassify_UnknownCode(t *testing.T) {
+	a := New().(*adapter)
+	result := a.classify(newTestCredential(), sendResponse{Code: "99999999", Msg: "unknown"})
+	if result.Status != provider.StatusTransientError {
+		t.Errorf("status = %v, want StatusTransientError", result.Status)
+	}
+}
+
+func TestRetryAfter_NoHeader(t *testing.T) {
+	resp := &http.Response{Header: http.Header{}}
+	if got := retryAfter(resp); got != 0 {
+		t.Errorf("retryAfter = %v, want 0", got)
+	}
+}
+
+// newTestServerWithStatus serves the OAuth2 token endpoint normally, and
+// the send endpoint with a fixed status/body regardless of request content.
+func newTestServerWithStatus(t *testing.T, status int, body string) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"fake-token","token_type":"Bearer","expires_in":3600}`))
+	})
+	mux.HandleFunc("/v1/test-app/messages:send", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	})
+	return httptest.NewServer(mux)
+}
+
 func TestStringifyData(t *testing.T) {
 	got := stringifyData(map[string]any{"key": "value"})
 	if got != `{"key":"value"}` {
@@ -151,5 +315,8 @@ func TestStringifyData(t *testing.T) {
 	}
 	if stringifyData(nil) != "" {
 		t.Error("expected empty string for nil data")
+	}
+	if got := stringifyData(map[string]any{"bad": math.NaN()}); got != "" {
+		t.Errorf("expected empty string when json.Marshal can't encode the value, got %q", got)
 	}
 }
