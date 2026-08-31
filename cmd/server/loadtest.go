@@ -57,7 +57,7 @@ func runLoadTest(_ config.Config, _ zerolog.Logger, args []string) error {
 	// don't guarantee FIFO), so the first N can just as easily be the last
 	// N actually processed.
 	sample := append([]notificationRef(nil), refs...)
-	rand.Shuffle(len(sample), func(i, j int) { sample[i], sample[j] = sample[j], sample[i] })
+	rand.Shuffle(len(sample), func(i, j int) { sample[i], sample[j] = sample[j], sample[i] }) //nolint:gosec // sampling which notifications to poll for a load test, not a security-sensitive value
 	sampleSize := len(sample)
 	if sampleSize > 20 {
 		sampleSize = 20
