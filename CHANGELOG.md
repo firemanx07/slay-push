@@ -5,6 +5,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-01
+
 ### Added
 - Phase 5 hardening complete: load testing closes out the phase (integration tests and
   per-provider outbound rate limiting landed in earlier entries below). A `server loadtest`
