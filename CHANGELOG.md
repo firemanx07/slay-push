@@ -6,6 +6,22 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Phase 5 hardening complete: load testing closes out the phase (integration tests and
+  per-provider outbound rate limiting landed in earlier entries below). A `server loadtest`
+  subcommand exercises a running instance's public API end-to-end — register devices, create
+  notifications, poll a sample to completion — with no DB/Redis dependency of its own. Running it
+  against this project's own dev stack surfaced and fixed two real issues: a proactively
+  throttled send was counting against asynq's `MaxRetry` the same as a genuine failure, so a task
+  could silently exhaust retries and leave its recipient stuck `queued` forever with no error
+  ever recorded (fixed via `asynq.Config.IsFailure`/`internal/queue.IsFailure`, exempting
+  `*queue.ThrottledError` from the retry budget); and asynq's default 5s
+  `DelayedTaskCheckInterval` was gating a throttled backlog's actual throughput far below the
+  configured rate limit (tuned to 500ms). See
+  [Load Testing](https://firemanx07.github.io/slay-push/docs/load-testing/) for real numbers and
+  what running it found. Also fixes two READMEs-disagreeing-with-themselves staleness bugs (the
+  Status section's phase-5 summary didn't match the Roadmap's own line for the same phase) and
+  documents outbound rate limiting in the architecture overview and the worker-scaling deployment
+  notes.
 - Phase 5 hardening: per-provider outbound rate limiting. The worker now caps how fast it calls
   out to each provider (`internal/dispatch.OutboundRateLimiter`, `DEFAULT_OUTBOUND_RATE_LIMIT_RPS`,
   default 20), scoped per `(project, provider)` pair rather than globally — each project has its
