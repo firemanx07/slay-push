@@ -62,9 +62,10 @@ cp .env.example .env
 docker compose -f deploy/docker/docker-compose.yml up
 ```
 
-Then open `http://localhost:8080` — the first visit routes to the setup wizard.
+This pulls the published image (`ghcr.io/firemanx07/slay-push`) — no local build needed. Then open
+`http://localhost:8080` — the first visit routes to the setup wizard.
 
-For local development with hot reload and a Seq log viewer:
+For local development, building the image from source and adding a Seq log viewer:
 
 ```bash
 docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml up

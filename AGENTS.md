@@ -33,7 +33,7 @@ internal/
   targeting            Resolver strategy interface (ByExplicitTargets, ByGroup, Registry)
   transport/http       chi router, handlers, middleware (API-key auth)
 migrations             plain SQL, golang-migrate format
-deploy/docker          Dockerfile, docker-compose.yml (prod-ish), docker-compose.dev.yml (adds Seq, hot reload)
+deploy/docker          Dockerfile, docker-compose.yml (pulls the published image), docker-compose.dev.yml (builds from source, adds Seq)
 api/openapi.yaml       the public HTTP API's OpenAPI 3.0 contract
 ```
 

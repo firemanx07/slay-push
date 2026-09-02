@@ -8,7 +8,9 @@ weight: 4
 
 The base `deploy/docker/docker-compose.yml` runs everything needed in production: `app`
 (`serve-all`), `worker`, a one-shot `migrate` init container, Postgres, and Redis. Healthchecks
-are wired on every service.
+are wired on every service. `app`/`worker`/`migrate` pull the published image
+(`ghcr.io/firemanx07/slay-push`) rather than building from source — pin a release with
+`SLAY_PUSH_VERSION=v0.1.0` in `.env` instead of floating on `:latest`.
 
 ```bash
 docker compose -f deploy/docker/docker-compose.yml up -d

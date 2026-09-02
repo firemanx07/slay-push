@@ -1,9 +1,16 @@
-# Dev-only overlay: adds Seq for structured-log viewing and points the app
-# containers at it. Never required in production — see the plan's rationale
-# in the Docker Compose section: prod logging is stdout JSON only, so any
-# self-hoster can pipe it into whatever log stack they already run.
+# Dev-only overlay: builds the app image from local source instead of
+# pulling the published one (the base file's default), and adds Seq for
+# structured-log viewing. Never required in production — see the plan's
+# rationale in the Docker Compose section: prod logging is stdout JSON
+# only, so any self-hoster can pipe it into whatever log stack they
+# already run.
 #
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+x-app-build: &app-build
+  build:
+    context: ../..
+    dockerfile: deploy/docker/Dockerfile
+
 services:
   seq:
     image: datalust/seq:latest
@@ -15,7 +22,11 @@ services:
     volumes:
       - seqdata:/data
 
+  migrate:
+    <<: *app-build
+
   app:
+    <<: *app-build
     environment:
       LOG_FORMAT: seq
       SEQ_URL: http://seq:5341
@@ -24,6 +35,7 @@ services:
         condition: service_started
 
   worker:
+    <<: *app-build
     environment:
       LOG_FORMAT: seq
       SEQ_URL: http://seq:5341
