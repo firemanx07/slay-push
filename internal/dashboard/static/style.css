@@ -1,3 +1,79 @@
+/* Space Grotesk, SIL Open Font License 1.1: https://fonts.google.com/specimen/Space+Grotesk/license */
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("/static/fonts/space-grotesk.woff2") format("woff2");
+}
+
+:root {
+  --slay-purple: #7c3aed;
+  --slay-blue: #3b82f6;
+  --slay-pink: #ec4899;
+  --slay-cyan: #06b6d4;
+  --slay-glass-border: rgba(124, 58, 237, 0.18);
+
+  --pico-primary: #7c3aed;
+  --pico-primary-background: #7c3aed;
+  --pico-primary-border: var(--pico-primary-background);
+  --pico-primary-underline: rgba(124, 58, 237, 0.5);
+  --pico-primary-hover: #6d28d9;
+  --pico-primary-hover-background: #6d28d9;
+  --pico-primary-hover-border: var(--pico-primary-hover-background);
+  --pico-primary-hover-underline: var(--pico-primary-hover);
+  --pico-primary-focus: rgba(124, 58, 237, 0.375);
+  --pico-primary-inverse: #fff;
+
+  --pico-card-background-color: rgba(255, 255, 255, 0.72);
+  --pico-card-border-color: var(--slay-glass-border);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --slay-glass-border: rgba(167, 139, 250, 0.3);
+
+    --pico-primary: #a78bfa;
+    --pico-primary-background: #7c3aed;
+    --pico-primary-border: var(--pico-primary-background);
+    --pico-primary-underline: rgba(167, 139, 250, 0.5);
+    --pico-primary-hover: #c4b5fd;
+    --pico-primary-hover-background: #8b5cf6;
+    --pico-primary-hover-border: var(--pico-primary-hover-background);
+    --pico-primary-hover-underline: var(--pico-primary-hover);
+    --pico-primary-focus: rgba(167, 139, 250, 0.375);
+    --pico-primary-inverse: #fff;
+
+    --pico-background-color: #0b0f19;
+    --pico-card-background-color: rgba(17, 24, 39, 0.6);
+  }
+}
+
+h1,
+h2,
+h3,
+nav .brand {
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+nav .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+nav .brand img {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+article {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
 .auth-page {
   max-width: 420px;
   margin: 3rem auto 0;

@@ -1,15 +1,25 @@
-@import "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap";
+@import "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap";
 
 :root {
-  --primary-hue: 186deg;
-  --primary-saturation: 88%;
-  --primary-lightness: 40%;
+  --primary-hue: 262deg;
+  --primary-saturation: 83%;
+  --primary-lightness: 48%;
+
+  --slay-purple: #7c3aed;
+  --slay-blue: #3b82f6;
+  --slay-pink: #ec4899;
+  --slay-cyan: #06b6d4;
+  --slay-glass-bg: rgba(255, 255, 255, 0.65);
+  --slay-glass-border: rgba(124, 58, 237, 0.18);
 }
 
 .dark {
-  --primary-hue: 186deg;
-  --primary-saturation: 75%;
-  --primary-lightness: 58%;
+  --primary-hue: 262deg;
+  --primary-saturation: 83%;
+  --primary-lightness: 60%;
+
+  --slay-glass-bg: rgba(17, 24, 39, 0.55);
+  --slay-glass-border: rgba(167, 139, 250, 0.3);
 }
 
 @layer theme {
@@ -25,6 +35,44 @@
 h1,
 h2,
 h3 {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;
+}
+
+/* Signature: an ambient gradient glow behind the hero + feature grid,
+   the one glass surface both sit on top of. */
+.slay-glow {
+  position: relative;
+}
+
+.slay-glow::before {
+  content: "";
+  position: absolute;
+  inset: -5% -15% auto -15%;
+  height: 36rem;
+  background:
+    radial-gradient(40% 55% at 18% 15%, color-mix(in srgb, var(--slay-purple) 55%, transparent), transparent 70%),
+    radial-gradient(35% 45% at 78% 10%, color-mix(in srgb, var(--slay-pink) 45%, transparent), transparent 70%),
+    radial-gradient(45% 55% at 55% 65%, color-mix(in srgb, var(--slay-cyan) 40%, transparent), transparent 70%);
+  filter: blur(90px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.slay-glass-badge {
+  background: var(--slay-glass-bg) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--slay-glass-border) !important;
+}
+
+.hextra-feature-card {
+  background: var(--slay-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: var(--slay-glass-border) !important;
+}
+
+.hextra-feature-card:hover {
+  border-color: color-mix(in srgb, var(--slay-purple) 55%, transparent) !important;
 }
