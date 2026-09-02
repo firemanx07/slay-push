@@ -37,19 +37,24 @@ Start the stack:
 docker compose -f deploy/docker/docker-compose.yml up
 ```
 
+This pulls the published image (`ghcr.io/firemanx07/slay-push`) — no local Go toolchain or build
+step needed. It defaults to `:latest`; pin a specific release instead with
+`SLAY_PUSH_VERSION=v0.1.0` in `.env`.
+
 Open `http://localhost:8080`. The first visit routes to a setup wizard that creates your admin
 account. Once that's done, `/setup` becomes permanently unreachable — there's no way to re-run it
 against an already-initialized instance.
 
 ## Local development
 
-The dev overlay adds hot reload and a [Seq](https://datalust.co/seq) log viewer:
+The dev overlay builds the image from local source instead of pulling the published one, and adds
+a [Seq](https://datalust.co/seq) log viewer:
 
 ```bash
 docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml up
 ```
 
-Seq's UI is at `http://localhost:8081`. This overlay is dev-only by design — production logging
+Seq's UI is at `http://localhost:8081`. Seq itself is dev-only by design — production logging
 is plain JSON to stdout, so it plugs into whatever log stack you already run (Loki, ELK, Datadog,
 CloudWatch) without needing Seq at all.
 

@@ -1,7 +1,5 @@
 x-app-image: &app-image
-  build:
-    context: ../..
-    dockerfile: deploy/docker/Dockerfile
+  image: ghcr.io/firemanx07/slay-push:${SLAY_PUSH_VERSION:-latest}
   environment:
     DATABASE_URL: postgres://pushdispatch:${POSTGRES_PASSWORD:-pushdispatch}@postgres:5432/pushdispatch?sslmode=disable
     REDIS_URL: redis://redis:6379/0

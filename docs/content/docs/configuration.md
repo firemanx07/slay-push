@@ -16,6 +16,7 @@ mapping. Everything else is read directly by the Go binary (`internal/config`).
 |---|---|---|---|
 | `POSTGRES_PASSWORD` | `pushdispatch` (dev) | Compose | Set a real password before exposing this beyond localhost — interpolated into `DATABASE_URL` for the `app`/`worker` containers. |
 | `APP_PORT` | `8080` | Compose | Host-side port the dashboard/API is exposed on. |
+| `SLAY_PUSH_VERSION` | `latest` | Compose | Which published `ghcr.io/firemanx07/slay-push` image tag to pull. Pin a release (e.g. `v0.1.0`) instead of floating on `latest`. |
 | `APP_HTTP_ADDR` | `:8080` | App | The address the binary itself binds to inside its container. |
 | `DATABASE_URL` | *(localhost default, overridden by Compose)* | App | Full Postgres connection string. |
 | `REDIS_URL` | *(localhost default, overridden by Compose)* | App | Full Redis connection string. |

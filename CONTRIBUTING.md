@@ -12,7 +12,7 @@ docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compo
 ```
 
 This gives you Postgres, Redis, and Seq (dev-only log viewer at `http://localhost:8081`)
-alongside the app and worker with hot reload.
+alongside the app and worker, built from your local source.
 
 Outside of Docker, you'll need Go (see `go.mod` for the version) plus a reachable
 Postgres/Redis for anything beyond `go build`.
