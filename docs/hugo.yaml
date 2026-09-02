@@ -1,5 +1,5 @@
 baseURL: "https://firemanx07.github.io/slay-push/"
-title: slay-push
+title: Slay Push
 
 enableGitInfo: true
 
@@ -53,7 +53,11 @@ params:
   description: Self-hostable, multi-tenant push notification dispatch for Expo, FCM, APNs, and Huawei HMS.
   navbar:
     displayTitle: true
-    displayLogo: false
+    displayLogo: true
+    logo:
+      path: images/logo.svg
+      width: 24
+      height: 24
   footer:
     displayCopyright: false
     displayPoweredBy: true

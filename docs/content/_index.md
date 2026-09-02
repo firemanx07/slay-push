@@ -1,10 +1,11 @@
 ---
-title: slay-push
+title: Slay Push
 layout: hextra-home
 ---
 
+<div class="slay-glow">
 <div class="hx:max-w-2xl">
-{{< hextra/hero-badge >}}
+{{< hextra/hero-badge class="slay-glass-badge" >}}
   <div class="hx:w-2 hx:h-2 hx:rounded-full hx:bg-primary-400"></div>
   <span>Apache 2.0 · self-hosted</span>
 {{< /hextra/hero-badge >}}
@@ -23,16 +24,15 @@ layout: hextra-home
 {{< hextra/hero-button text="Get Started" link="docs/getting-started" >}}
 {{< hextra/hero-button text="View on GitHub" link="https://github.com/firemanx07/slay-push" >}}
 </div>
-{{< callout type="warning" >}}
-**Not yet recommended for production use.** slay-push is MVP-complete — self-hostable,
-multi-tenant, all four providers, dashboard-managed credentials and API keys — but the
-hardening pass (integration tests, load testing, per-provider outbound rate limiting) is still
-in progress. See the [Roadmap](https://github.com/firemanx07/slay-push#roadmap) for status.
+{{< callout type="info" >}}
+**Early but functional.** Slay Push is self-hostable, multi-tenant, all four providers,
+dashboard-managed credentials and API keys, integration-tested, load-tested, and
+rate-limited — but still a young project without a production track record yet. Run your own
+load test against your deployment before trusting it with real traffic. See the
+[Roadmap](https://github.com/firemanx07/slay-push#roadmap) for status.
 {{< /callout >}}
 </div>
-
 <div class="hx:mt-16"></div>
-
 {{< hextra/feature-grid >}}
   {{< hextra/feature-card
     title="One service, four channels"
@@ -65,5 +65,6 @@ in progress. See the [Roadmap](https://github.com/firemanx07/slay-push#roadmap) 
     icon="lightning-bolt"
   >}}
 {{< /hextra/feature-grid >}}
+</div>
 
 <div class="hx:mt-8"></div>
