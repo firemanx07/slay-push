@@ -10,6 +10,10 @@ x-app-build: &app-build
   build:
     context: ../..
     dockerfile: deploy/docker/Dockerfile
+  # These services also inherit image: from the base file's x-app-image
+  # anchor. Without pull_policy: build, Compose can reuse that cached/pulled
+  # image instead of rebuilding from the local source above.
+  pull_policy: build
 
 services:
   seq:
