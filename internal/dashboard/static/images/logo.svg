@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="slay-mark-gradient" x1="8" y1="8" x2="92" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="55%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <polygon points="50,8 86.37,29 86.37,71 50,92 13.63,71 13.63,29"
+    stroke="url(#slay-mark-gradient)" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M62,27 L40,27 L40,46 L62,46 L62,65 L38,65"
+    stroke="url(#slay-mark-gradient)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

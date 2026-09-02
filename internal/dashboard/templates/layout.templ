@@ -9,7 +9,7 @@ templ Layout(title string, userEmail string) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title } · slay-push</title>
+			<title>{ title } · Slay Push</title>
 			<link rel="stylesheet" href="/static/pico.min.css"/>
 			<link rel="stylesheet" href="/static/style.css"/>
 			<script src="/static/htmx.min.js"></script>
@@ -18,7 +18,12 @@ templ Layout(title string, userEmail string) {
 			<header class="container">
 				<nav>
 					<ul>
-						<li><strong><a href="/">slay-push</a></strong></li>
+						<li>
+							<a href="/" class="brand">
+								<img src="/static/images/logo.svg" alt=""/>
+								<strong>Slay Push</strong>
+							</a>
+						</li>
 					</ul>
 					if userEmail != "" {
 						<ul>
