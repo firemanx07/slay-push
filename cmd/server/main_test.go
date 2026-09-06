@@ -387,6 +387,34 @@ func TestRunResetPassword_MissingEmail(t *testing.T) {
 	}
 }
 
+func TestRunResetPassword_StdinReadError(t *testing.T) {
+	r, _, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatalf("close read end: %v", err)
+	}
+	original := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = original })
+
+	cfg := config.Config{DatabaseURL: testDatabaseURL}
+	err = runResetPassword(cfg, zerolog.Nop(), []string{"--email", "someone@example.com"})
+	if err == nil {
+		t.Fatal("expected error reading from an already-closed stdin")
+	}
+}
+
+func TestRunResetPassword_ConnectError(t *testing.T) {
+	withStdin(t, "a-long-enough-password\n")
+	cfg := config.Config{DatabaseURL: "postgres://baduser:badpass@127.0.0.1:1/nope?sslmode=disable"} //nolint:gosec // deliberately bogus/unreachable DSN to trigger a connect error, not a real credential
+	err := runResetPassword(cfg, zerolog.Nop(), []string{"--email", "someone@example.com"})
+	if err == nil {
+		t.Fatal("expected error connecting to an unreachable database")
+	}
+}
+
 func TestRunResetPassword_ShortPassword(t *testing.T) {
 	withStdin(t, "short\n")
 	cfg := config.Config{DatabaseURL: testDatabaseURL}
