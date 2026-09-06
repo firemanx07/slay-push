@@ -21,6 +21,17 @@ func (q *Queries) AdvisoryLockDeviceUUID(ctx context.Context, lockKey string) er
 	return err
 }
 
+const countDevicesByProject = `-- name: CountDevicesByProject :one
+select count(*) from devices where project_id = $1
+`
+
+func (q *Queries) CountDevicesByProject(ctx context.Context, projectID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countDevicesByProject, projectID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getDevicesByIDs = `-- name: GetDevicesByIDs :many
 select id, project_id, subscriber_id, token, platform, provider_type, status, metadata, created_at, updated_at from devices where project_id = $1 and id = any($2::uuid[])
 `

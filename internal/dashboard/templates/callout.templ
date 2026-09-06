@@ -1,0 +1,20 @@
+package templates
+
+// Callout renders a form-result Message as a color-coded notice. Renders
+// nothing for a zero-value Message.
+templ Callout(m Message) {
+	if m.Text != "" {
+		<p class={ "callout", calloutClass(m.Kind) }>{ m.Text }</p>
+	}
+}
+
+func calloutClass(kind string) string {
+	switch kind {
+	case "error":
+		return "callout-error"
+	case "success":
+		return "callout-success"
+	default:
+		return "callout-note"
+	}
+}

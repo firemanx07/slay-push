@@ -1,24 +1,23 @@
 package templates
 
-templ APIKeysTab(userEmail string, project Project, keys []APIKey, revealedKey string, message string) {
-	@Layout(project.Name + " · API Keys", userEmail) {
-		<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
-		@ProjectNav(project.ID, "api-keys")
-		<h1>API Keys</h1>
+templ APIKeysTab(userEmail string, project Project, allProjects []Project, keys []APIKey, revealedKey string, message Message) {
+	@Layout(project.Name+" · API Keys", userEmail, Sidebar{Projects: allProjects, ProjectID: project.ID, ActiveNav: "api-keys"}) {
+		@PageHeader("API Keys")
 		if revealedKey != "" {
-			<article style="border-left: 4px solid var(--pico-del-color);">
+			<article class="callout-card-warning">
 				<p><strong>Save this key now — it cannot be shown again:</strong></p>
 				<pre><code>{ revealedKey }</code></pre>
 			</article>
 		}
-		if message != "" {
-			<p>{ message }</p>
-		}
+		@Callout(message)
 		<table>
 			<thead>
 				<tr><th>Name</th><th>Prefix</th><th>Scope</th><th>Created</th><th>Status</th><th></th></tr>
 			</thead>
 			<tbody>
+				if len(keys) == 0 {
+					@EmptyState(6, "No API keys created yet.")
+				}
 				for _, k := range keys {
 					<tr>
 						<td>{ k.Name }</td>
@@ -26,14 +25,14 @@ templ APIKeysTab(userEmail string, project Project, keys []APIKey, revealedKey s
 						<td>{ k.Scope }</td>
 						<td>{ k.CreatedAt.Format("2006-01-02 15:04") }</td>
 						if k.Revoked {
-							<td>revoked</td>
+							<td>@StatusBadge("revoked")</td>
 						} else {
-							<td>active</td>
+							<td>@StatusBadge("active")</td>
 						}
 						<td>
 							if !k.Revoked {
 								<form method="post" action={ templ.URL("/projects/" + project.ID + "/api-keys/" + k.ID + "/revoke") } class="inline-form">
-									<button type="submit" class="outline contrast">Revoke</button>
+									<button type="submit" class="outline danger">Revoke</button>
 								</form>
 							}
 						</td>

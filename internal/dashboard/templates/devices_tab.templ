@@ -1,10 +1,8 @@
 package templates
 
-templ DevicesTab(userEmail string, project Project, devices []Device, externalID string, status string) {
-	@Layout(project.Name + " · Devices", userEmail) {
-		<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
-		@ProjectNav(project.ID, "devices")
-		<h1>Devices</h1>
+templ DevicesTab(userEmail string, project Project, allProjects []Project, devices []Device, externalID string, status string) {
+	@Layout(project.Name+" · Devices", userEmail, Sidebar{Projects: allProjects, ProjectID: project.ID, ActiveNav: "devices"}) {
+		@PageHeader("Devices")
 		<form method="get" action={ templ.URL("/projects/" + project.ID + "/devices") } role="search">
 			<fieldset role="group">
 				<input type="text" name="external_id" placeholder="external_user_id" value={ externalID }/>
@@ -19,14 +17,18 @@ templ DevicesTab(userEmail string, project Project, devices []Device, externalID
 		</form>
 		<table>
 			<thead>
-				<tr><th>Platform</th><th>Provider</th><th>Status</th><th>Created</th></tr>
+				<tr><th>External ID</th><th>Platform</th><th>Provider</th><th>Status</th><th>Created</th></tr>
 			</thead>
 			<tbody>
+				if len(devices) == 0 {
+					@EmptyState(5, "No devices match these filters.")
+				}
 				for _, d := range devices {
 					<tr>
+						<td>@IDValue(d.ExternalID)</td>
 						<td>{ d.Platform }</td>
 						<td>{ d.ProviderType }</td>
-						<td>{ d.Status }</td>
+						<td>@StatusBadge(d.Status)</td>
 						<td>{ d.CreatedAt.Format("2006-01-02 15:04") }</td>
 					</tr>
 				}

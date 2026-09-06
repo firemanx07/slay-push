@@ -78,11 +78,18 @@ func (s *Server) handleNotificationsTab(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	allProjects, err := s.sidebarProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	views := make([]templates.Notification, 0, len(notifications))
 	for _, n := range notifications {
 		views = append(views, toNotificationView(n))
 	}
-	renderPage(w, r, templates.NotificationsTab(email, toProjectView(project), views))
+	renderPage(w, r, templates.NotificationsTab(email, toProjectView(project), allProjects, views))
 }
 
 // notificationRecipients resolves a notification (unscoped by project — the
@@ -129,6 +136,19 @@ func (s *Server) handleNotificationDetail(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	project, err := s.visibleProject(r.Context(), postgres.UUIDTo(n.ProjectID))
+	if err != nil {
+		http.Error(w, "project not found", http.StatusNotFound)
+		return
+	}
+
+	allProjects, err := s.sidebarProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	recipientViews := make([]templates.Recipient, 0, len(recipients))
 	for _, rec := range recipients {
 		recipientViews = append(recipientViews, toRecipientView(rec))
@@ -136,7 +156,7 @@ func (s *Server) handleNotificationDetail(w http.ResponseWriter, r *http.Request
 	recipientCounts := toRecipientCounts(counts)
 
 	renderPage(w, r, templates.NotificationDetail(
-		email, id.String(), n.Status, n.TotalRecipients, recipientCounts, recipientViews,
+		email, toProjectView(project), allProjects, id.String(), n.Status, n.TotalRecipients, recipientCounts, recipientViews,
 		recipientCounts.Terminal(n.TotalRecipients),
 	))
 }

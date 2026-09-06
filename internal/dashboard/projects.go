@@ -41,6 +41,21 @@ func (s *Server) currentUserEmail(r *http.Request) (string, error) {
 	return user.Email, nil
 }
 
+// sidebarProjects lists every visible project as view-models, for the app
+// shell sidebar's project switcher. Every project-scoped page render needs
+// this alongside whatever else it fetches.
+func (s *Server) sidebarProjects(ctx context.Context) ([]templates.Project, error) {
+	projects, err := s.visibleProjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]templates.Project, 0, len(projects))
+	for _, p := range projects {
+		views = append(views, toProjectView(p))
+	}
+	return views, nil
+}
+
 func toProjectView(p postgres.Project) templates.Project {
 	return templates.Project{
 		ID:        postgres.UUIDTo(p.ID).String(),
@@ -57,7 +72,7 @@ func projectIDFromRoute(r *http.Request) (uuid.UUID, bool) {
 	return id, err == nil
 }
 
-func (s *Server) renderProjectsList(w http.ResponseWriter, r *http.Request, message string) {
+func (s *Server) renderProjectsList(w http.ResponseWriter, r *http.Request, message templates.Message) {
 	email, err := s.currentUserEmail(r)
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
@@ -79,27 +94,83 @@ func (s *Server) renderProjectsList(w http.ResponseWriter, r *http.Request, mess
 }
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	s.renderProjectsList(w, r, "")
+	s.renderProjectsList(w, r, templates.Message{})
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		s.renderProjectsList(w, r, "invalid form submission")
+		s.renderProjectsList(w, r, errMsg("invalid form submission"))
 		return
 	}
 	name := r.FormValue("name")
 	slug := r.FormValue("slug")
 	if name == "" || slug == "" {
-		s.renderProjectsList(w, r, "name and slug are required")
+		s.renderProjectsList(w, r, errMsg("name and slug are required"))
 		return
 	}
 
 	if _, err := s.DB.CreateProject(r.Context(), postgres.CreateProjectParams{Name: name, Slug: slug}); err != nil {
-		s.renderProjectsList(w, r, "failed to create project (slug may already be in use)")
+		s.renderProjectsList(w, r, errMsg("failed to create project (slug may already be in use)"))
 		return
 	}
 
 	http.Redirect(w, r, "/projects", http.StatusSeeOther)
+}
+
+const recentNotificationsPageSize = 5
+
+// projectStats gathers the counts and recent activity the overview page's
+// stat cards need, reusing the same list queries the individual tabs
+// already call rather than adding a query per stat.
+func (s *Server) projectStats(r *http.Request, project postgres.Project) (templates.ProjectStats, error) {
+	deviceCount, err := s.DB.CountDevicesByProject(r.Context(), project.ID)
+	if err != nil {
+		return templates.ProjectStats{}, err
+	}
+
+	credentials, err := s.DB.ListProviderCredentialsByProject(r.Context(), project.ID)
+	if err != nil {
+		return templates.ProjectStats{}, err
+	}
+	activeProviders := 0
+	for _, c := range credentials {
+		if c.IsActive {
+			activeProviders++
+		}
+	}
+
+	keys, err := s.DB.ListAPIKeysByProject(r.Context(), project.ID)
+	if err != nil {
+		return templates.ProjectStats{}, err
+	}
+	activeKeys := 0
+	for _, k := range keys {
+		if !k.RevokedAt.Valid {
+			activeKeys++
+		}
+	}
+
+	notifications, err := s.DB.ListNotificationsByProject(r.Context(), postgres.ListNotificationsByProjectParams{
+		ProjectID:  project.ID,
+		PageOffset: 0,
+		PageLimit:  recentNotificationsPageSize,
+	})
+	if err != nil {
+		return templates.ProjectStats{}, err
+	}
+	notificationViews := make([]templates.Notification, 0, len(notifications))
+	for _, n := range notifications {
+		notificationViews = append(notificationViews, toNotificationView(n))
+	}
+
+	return templates.ProjectStats{
+		DeviceCount:         deviceCount,
+		ActiveProviderCount: activeProviders,
+		ProviderCount:       len(credentials),
+		ActiveAPIKeyCount:   activeKeys,
+		APIKeyCount:         len(keys),
+		RecentNotifications: notificationViews,
+	}, nil
 }
 
 func (s *Server) handleProjectOverview(w http.ResponseWriter, r *http.Request) {
@@ -122,5 +193,19 @@ func (s *Server) handleProjectOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderPage(w, r, templates.ProjectOverview(email, toProjectView(project)))
+	allProjects, err := s.sidebarProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	stats, err := s.projectStats(r, project)
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to gather project stats")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	renderPage(w, r, templates.ProjectOverview(email, toProjectView(project), allProjects, stats))
 }

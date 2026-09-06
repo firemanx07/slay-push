@@ -1,26 +1,25 @@
 package templates
 
-templ ProvidersTab(userEmail string, project Project, credentials []ProviderCredential, message string) {
-	@Layout(project.Name + " · Providers", userEmail) {
-		<p><a href={ templ.URL("/projects/" + project.ID) }>&larr; { project.Name }</a></p>
-		@ProjectNav(project.ID, "providers")
-		<h1>Providers</h1>
-		if message != "" {
-			<p>{ message }</p>
-		}
+templ ProvidersTab(userEmail string, project Project, allProjects []Project, credentials []ProviderCredential, message Message) {
+	@Layout(project.Name+" · Providers", userEmail, Sidebar{Projects: allProjects, ProjectID: project.ID, ActiveNav: "providers"}) {
+		@PageHeader("Providers")
+		@Callout(message)
 		<table>
 			<thead>
 				<tr><th>Provider</th><th>Environment</th><th>Active</th><th>Updated</th><th></th></tr>
 			</thead>
 			<tbody>
+				if len(credentials) == 0 {
+					@EmptyState(5, "No provider credentials configured yet.")
+				}
 				for _, c := range credentials {
 					<tr>
 						<td>{ c.ProviderType }</td>
 						<td>{ c.Environment }</td>
 						if c.IsActive {
-							<td>yes</td>
+							<td>@StatusBadge("yes")</td>
 						} else {
-							<td>no</td>
+							<td>@StatusBadge("no")</td>
 						}
 						<td>{ c.UpdatedAt.Format("2006-01-02 15:04") }</td>
 						<td>

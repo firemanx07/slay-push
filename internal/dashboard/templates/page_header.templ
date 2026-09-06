@@ -1,0 +1,18 @@
+package templates
+
+import "strconv"
+
+// PageHeader renders the page title every inner page starts with.
+templ PageHeader(title string) {
+	<div class="page-header">
+		<h1>{ title }</h1>
+	</div>
+}
+
+// EmptyState renders a muted placeholder row inside a table body when a
+// listing has no results.
+templ EmptyState(colspan int, message string) {
+	<tr>
+		<td colspan={ strconv.Itoa(colspan) } class="empty-state">{ message }</td>
+	</tr>
+}

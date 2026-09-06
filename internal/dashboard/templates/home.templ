@@ -1,18 +1,22 @@
 package templates
 
 templ Home(userEmail string, projects []Project) {
-	@Layout("Dashboard", userEmail) {
-		<h1>Dashboard</h1>
+	@Layout("Dashboard", userEmail, Sidebar{Projects: projects}) {
+		@PageHeader("Dashboard")
 		<article>
 			<header>
-				<strong>Projects</strong>
-				<a href="/projects" role="button" class="outline" style="float:right;">Manage projects &rarr;</a>
+				<span>Projects</span>
+				<a href="/projects" role="button" class="outline">Manage projects &rarr;</a>
 			</header>
-			<ul>
-				for _, p := range projects {
-					<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> <small>({ p.Slug })</small></li>
-				}
-			</ul>
+			if len(projects) == 0 {
+				<p class="empty-state">No projects yet.</p>
+			} else {
+				<ul class="item-list">
+					for _, p := range projects {
+						<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> <small>({ p.Slug })</small></li>
+					}
+				</ul>
+			}
 		</article>
 	}
 }

@@ -1,4 +1,6 @@
-# slay-push
+<img src="docs/static/images/logo.svg" alt="" width="40" height="40" align="left"/>
+
+# Slay Push
 
 [![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ea4aaa)](https://github.com/sponsors/firemanx07)
 [![codecov](https://codecov.io/github/firemanx07/slay-push/graph/badge.svg?token=B15DH3X9S7)](https://codecov.io/github/firemanx07/slay-push)
@@ -14,7 +16,7 @@ after `docker compose up`.
 ## Why
 
 Most self-hosted alternatives either only support one push channel or require running a
-separate stack per provider. slay-push is one binary, one Postgres/Redis-backed service,
+separate stack per provider. Slay Push is one binary, one Postgres/Redis-backed service,
 that talks to all four channels directly, with request/response shapes close enough to
 OneSignal's REST API that a team migrating off OneSignal can reuse most of their existing
 integration code.
