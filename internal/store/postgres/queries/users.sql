@@ -11,3 +11,6 @@ select * from users where id = $1;
 
 -- name: CountUsers :one
 select count(*) from users;
+
+-- name: UpdateUserPassword :execrows
+update users set password_hash = $2 where email = $1;

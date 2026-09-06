@@ -16,7 +16,7 @@ API with OneSignal-shaped request/response fields (see `api/openapi.yaml` for th
 ```
 cmd/server            main.go — subcommands: serve-all, serve-api, serve-dashboard, worker,
                        migrate, healthcheck, seed-credential, create-project, create-api-key,
-                       bootstrap (rotate-key is declared but not yet implemented)
+                       bootstrap, reset-password (rotate-key is declared but not yet implemented)
 internal/
   apikey               API key generation/hashing, scoping, Redis GCRA rate limiting
   auth                 argon2id password hashing, dashboard session token generation/hashing
