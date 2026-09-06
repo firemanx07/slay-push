@@ -71,9 +71,14 @@ directly, from the same shell access `bootstrap`/`create-project`/`create-api-ke
 require:
 
 ```bash
-echo '<a-real-password>' | docker compose -f deploy/docker/docker-compose.yml run --rm -T \
+read -rs PASSWORD
+printf '%s' "$PASSWORD" | docker compose -f deploy/docker/docker-compose.yml run --rm -T \
   app reset-password --email admin@example.com
+unset PASSWORD
 ```
 
-The new password is read from stdin, not a flag, so it never lands in shell history or `ps`.
-`-T` disables pseudo-TTY allocation so the piped `echo` actually reaches the container's stdin.
+The command reads the new password from stdin rather than a flag, so its own invocation never
+puts it in `ps`. `read -rs` prompts for the password without echoing it to the terminal or typing
+it as a literal argument — piping in an `echo '<literal>'` instead would land the password in
+shell history the moment you ran it. `-T` disables pseudo-TTY allocation so the piped input
+actually reaches the container's stdin.

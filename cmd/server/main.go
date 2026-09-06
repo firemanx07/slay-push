@@ -482,18 +482,11 @@ func runBootstrap(cfg config.Config, logger zerolog.Logger) error {
 	return nil
 }
 
-// resetPasswordMinLength matches internal/dashboard/setup_handlers.go's
-// minPasswordLength — the two aren't shared because that one is unexported
-// and this is a different package, not because the rule differs.
+// resetPasswordMinLength is the minimum length required of a new password.
 const resetPasswordMinLength = 8
 
-// runResetPassword sets an existing dashboard user's password directly —
-// the recovery path for a lost admin password, since there's no self-serve
-// "forgot password" flow (this app has no SMTP/email sending at all).
-// Requires shell access to run, same trust level as create-project/
-// create-api-key/bootstrap: anyone who can exec into the container already
-// has DB access. The new password is read from stdin rather than a flag so
-// it never lands in shell history or `ps`.
+// runResetPassword sets an existing dashboard user's password to a new
+// value read from stdin.
 func runResetPassword(cfg config.Config, logger zerolog.Logger, args []string) error {
 	fs := flag.NewFlagSet("reset-password", flag.ExitOnError)
 	email := fs.String("email", "", "email of the existing dashboard user to reset")
