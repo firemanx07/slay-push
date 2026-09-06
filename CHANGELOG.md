@@ -14,6 +14,34 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   web-exposed "forgot password" flow, deliberately, since this app has no SMTP/email sending and a
   self-serve reset endpoint would be a real new attack surface (email enumeration, token guessing)
   for little benefit on a single-admin operator panel.
+- Dashboard rebuilt as a persistent sidebar-shell app instead of a top tab-bar layout: a project
+  switcher plus per-project section nav live in the sidebar, replacing the old `ProjectNav` tab
+  bar; the project overview page is now stat-forward (device count via a new
+  `CountDevicesByProject` query, active/total provider and API key counts, a recent-notifications
+  activity table) instead of a bare slug/status card.
+- A shared status/feedback design system across every dashboard page: a `StatusBadge` component
+  (color-coded success/warning/danger/neutral pill, replacing bare status text and one stray
+  `<mark>` use) and a `Message`/`Callout` component (error/success/neutral, replacing plain
+  paragraph text that made every form error and confirmation message visually indistinguishable
+  from body copy — a real defect, not just a polish item, since nearly every existing call site
+  across Providers/API Keys/Projects was actually an unstyled error).
+- Devices table gained the `External ID` column it was missing — you could filter by
+  `external_user_id` but the results never displayed it, so there was no way to tell which row
+  matched which user.
+- Long opaque identifiers (device IDs, provider message IDs) now render as truncated monospace
+  text with the full value on hover, instead of raw UUIDs free to blow out a table's column
+  widths; empty ID/error cells show a muted placeholder instead of an ambiguous blank.
+- Root font-size no longer scales with viewport width (Pico's default scales up to 131.25% on
+  wide monitors, and since virtually everything is sized in `rem`, that was inflating the entire
+  dashboard on any normal desktop screen) — pinned flat at a dense-admin-app size instead of
+  prose-comfortable. Form controls and buttons inside dashboard content now carry their own
+  explicit sizing (buttons content-sized, single-line fields capped at a sane width) rather than
+  inheriting Pico's `width: 100%` default, which only looked right by accident depending on
+  whatever container happened to wrap them.
+- New logo: a two-tone blue-to-cyan gradient mark, vector-traced from the source reference via
+  `potrace` rather than hand-approximated, applied across the docs site nav, dashboard nav, and
+  regenerated favicons.
+- Docs site: removed the Hextra theme's default "Powered by Hextra" footer credit.
 
 ## [0.1.0] - 2026-09-01
 

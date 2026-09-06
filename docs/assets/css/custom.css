@@ -1,25 +1,25 @@
 @import "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap";
 
 :root {
-  --primary-hue: 262deg;
-  --primary-saturation: 83%;
-  --primary-lightness: 48%;
+  --primary-hue: 258deg;
+  --primary-saturation: 89%;
+  --primary-lightness: 63%;
 
-  --slay-purple: #7c3aed;
-  --slay-blue: #3b82f6;
-  --slay-pink: #ec4899;
-  --slay-cyan: #06b6d4;
+  --slay-purple: #8b5cf6;
+  --slay-blue: #38bdf8;
+  --slay-pink: #d946ef;
+  --slay-cyan: #22d3ee;
   --slay-glass-bg: rgba(255, 255, 255, 0.65);
-  --slay-glass-border: rgba(124, 58, 237, 0.18);
+  --slay-glass-border: rgba(139, 92, 246, 0.18);
 }
 
 .dark {
-  --primary-hue: 262deg;
-  --primary-saturation: 83%;
-  --primary-lightness: 60%;
+  --primary-hue: 258deg;
+  --primary-saturation: 89%;
+  --primary-lightness: 68%;
 
-  --slay-glass-bg: rgba(17, 24, 39, 0.55);
-  --slay-glass-border: rgba(167, 139, 250, 0.3);
+  --slay-glass-bg: rgba(18, 26, 41, 0.55);
+  --slay-glass-border: rgba(139, 92, 246, 0.3);
 }
 
 @layer theme {
@@ -28,7 +28,7 @@
   }
 }
 
-.content {
+body {
   font-family: "Work Sans", ui-sans-serif, system-ui, sans-serif;
 }
 

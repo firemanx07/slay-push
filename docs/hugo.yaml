@@ -60,7 +60,7 @@ params:
       height: 24
   footer:
     displayCopyright: false
-    displayPoweredBy: true
+    displayPoweredBy: false
   editURL:
     enable: true
     base: "https://github.com/firemanx07/slay-push/edit/main/docs/content"
