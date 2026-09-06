@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -77,6 +78,8 @@ func main() {
 		err = runCreateAPIKey(cfg, logger, os.Args[2:])
 	case "bootstrap":
 		err = runBootstrap(cfg, logger)
+	case "reset-password":
+		err = runResetPassword(cfg, logger, os.Args[2:])
 	case "loadtest":
 		err = runLoadTest(cfg, logger, os.Args[2:])
 	case "rotate-key":
@@ -93,7 +96,7 @@ func main() {
 }
 
 func usage() string {
-	return "usage: server <serve-all|serve-api|serve-dashboard|worker|migrate|healthcheck|seed-credential|create-project|create-api-key|bootstrap|loadtest|rotate-key>"
+	return "usage: server <serve-all|serve-api|serve-dashboard|worker|migrate|healthcheck|seed-credential|create-project|create-api-key|bootstrap|reset-password|loadtest|rotate-key>"
 }
 
 // runHealthcheckProbe lets `docker compose healthcheck:` call the binary
@@ -476,5 +479,63 @@ func runBootstrap(cfg config.Config, logger zerolog.Logger) error {
 	}
 
 	logger.Info().Str("email", email).Msg("bootstrap: admin account created")
+	return nil
+}
+
+// resetPasswordMinLength matches internal/dashboard/setup_handlers.go's
+// minPasswordLength — the two aren't shared because that one is unexported
+// and this is a different package, not because the rule differs.
+const resetPasswordMinLength = 8
+
+// runResetPassword sets an existing dashboard user's password directly —
+// the recovery path for a lost admin password, since there's no self-serve
+// "forgot password" flow (this app has no SMTP/email sending at all).
+// Requires shell access to run, same trust level as create-project/
+// create-api-key/bootstrap: anyone who can exec into the container already
+// has DB access. The new password is read from stdin rather than a flag so
+// it never lands in shell history or `ps`.
+func runResetPassword(cfg config.Config, logger zerolog.Logger, args []string) error {
+	fs := flag.NewFlagSet("reset-password", flag.ExitOnError)
+	email := fs.String("email", "", "email of the existing dashboard user to reset")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *email == "" {
+		return errors.New("reset-password: --email is required")
+	}
+
+	rawPassword, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("read new password from stdin: %w", err)
+	}
+	password := strings.TrimRight(string(rawPassword), "\r\n")
+	if len(password) < resetPasswordMinLength {
+		return fmt.Errorf("reset-password: password must be at least %d characters", resetPasswordMinLength)
+	}
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	ctx := context.Background()
+	db, err := platform.NewPostgresPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+	defer db.Close()
+
+	rows, err := postgres.New(db).UpdateUserPassword(ctx, postgres.UpdateUserPasswordParams{
+		Email:        *email,
+		PasswordHash: hash,
+	})
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("reset-password: no user with email %q", *email)
+	}
+
+	logger.Info().Str("email", *email).Msg("reset-password: password updated")
 	return nil
 }

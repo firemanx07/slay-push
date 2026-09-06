@@ -61,3 +61,19 @@ docker compose -f deploy/docker/docker-compose.yml run --rm \
 ```
 
 It's a no-op if an admin account already exists.
+
+## Recovering a lost admin password
+
+There's no self-serve "forgot password" flow — this app sends no email, and a web-exposed reset
+endpoint would be a real attack surface (email enumeration, token guessing) for little benefit on
+a single-admin operator panel. Instead, `reset-password` sets an existing user's password
+directly, from the same shell access `bootstrap`/`create-project`/`create-api-key` already
+require:
+
+```bash
+echo '<a-real-password>' | docker compose -f deploy/docker/docker-compose.yml run --rm -T \
+  app reset-password --email admin@example.com
+```
+
+The new password is read from stdin, not a flag, so it never lands in shell history or `ps`.
+`-T` disables pseudo-TTY allocation so the piped `echo` actually reaches the container's stdin.

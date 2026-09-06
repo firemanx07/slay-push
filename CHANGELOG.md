@@ -5,6 +5,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- `server reset-password --email <email>` CLI subcommand — the recovery path for a lost dashboard
+  admin password. Reads the new password from stdin (never a flag, so it never lands in shell
+  history or `ps`) and requires shell access to the container, the same trust level as
+  `create-project`/`create-api-key`/`bootstrap` — there's no web-exposed "forgot password" flow,
+  deliberately, since this app has no SMTP/email sending and a self-serve reset endpoint would be
+  a real new attack surface (email enumeration, token guessing) for little benefit on a
+  single-admin operator panel.
+
 ## [0.1.0] - 2026-09-01
 
 ### Added

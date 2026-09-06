@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 
+	"github.com/firemanx07/slay-push/internal/auth"
 	"github.com/firemanx07/slay-push/internal/config"
 	"github.com/firemanx07/slay-push/internal/crypto"
 	"github.com/firemanx07/slay-push/internal/platform"
@@ -356,6 +357,81 @@ func TestRunBootstrap_IdempotentAcrossRepeatCalls(t *testing.T) {
 	}
 	if err := runBootstrap(cfg, zerolog.Nop()); err != nil {
 		t.Fatalf("second runBootstrap (should be idempotent): %v", err)
+	}
+}
+
+// withStdin points os.Stdin at content for the duration of t, restoring the
+// original afterward — runResetPassword reads the new password from stdin.
+func withStdin(t *testing.T, content string) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	if _, err := w.WriteString(content); err != nil {
+		t.Fatalf("write stdin pipe: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close stdin pipe writer: %v", err)
+	}
+
+	original := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = original })
+}
+
+func TestRunResetPassword_MissingEmail(t *testing.T) {
+	cfg := config.Config{DatabaseURL: testDatabaseURL}
+	if err := runResetPassword(cfg, zerolog.Nop(), []string{}); err == nil {
+		t.Fatal("expected error for missing --email")
+	}
+}
+
+func TestRunResetPassword_ShortPassword(t *testing.T) {
+	withStdin(t, "short\n")
+	cfg := config.Config{DatabaseURL: testDatabaseURL}
+	err := runResetPassword(cfg, zerolog.Nop(), []string{"--email", "someone@example.com"})
+	if err == nil {
+		t.Fatal("expected error for a too-short password")
+	}
+}
+
+func TestRunResetPassword_UnknownUser(t *testing.T) {
+	requireDB(t)
+	withStdin(t, "a-long-enough-password\n")
+	cfg := config.Config{DatabaseURL: testDatabaseURL}
+	err := runResetPassword(cfg, zerolog.Nop(), []string{"--email", "no-such-user-" + uuid.NewString() + "@example.com"})
+	if err == nil {
+		t.Fatal("expected error for an unknown email")
+	}
+}
+
+func TestRunResetPassword_Success(t *testing.T) {
+	requireDB(t)
+	pool := openPool(t)
+	email := "cmdtest-" + uuid.NewString() + "@example.com"
+	ctx := context.Background()
+	if _, err := postgres.New(pool).CreateUser(ctx, postgres.CreateUserParams{Email: email, PasswordHash: "placeholder"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `delete from users where email = $1`, email) })
+
+	withStdin(t, "a-brand-new-password\n")
+	cfg := config.Config{DatabaseURL: testDatabaseURL}
+	if err := runResetPassword(cfg, zerolog.Nop(), []string{"--email", email}); err != nil {
+		t.Fatalf("runResetPassword: %v", err)
+	}
+
+	user, err := postgres.New(pool).GetUserByEmail(ctx, email)
+	if err != nil {
+		t.Fatalf("GetUserByEmail: %v", err)
+	}
+	ok, err := auth.VerifyPassword(user.PasswordHash, "a-brand-new-password")
+	if err != nil {
+		t.Fatalf("VerifyPassword: %v", err)
+	}
+	if !ok {
+		t.Error("password was not updated to the new value")
 	}
 }
 
