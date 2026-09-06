@@ -23,7 +23,7 @@ func toAPIKeyView(k postgres.ApiKey) templates.APIKey {
 	}
 }
 
-func (s *Server) renderAPIKeysTab(w http.ResponseWriter, r *http.Request, project postgres.Project, revealedKey, message string) {
+func (s *Server) renderAPIKeysTab(w http.ResponseWriter, r *http.Request, project postgres.Project, revealedKey string, message templates.Message) {
 	email, err := s.currentUserEmail(r)
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
@@ -38,11 +38,18 @@ func (s *Server) renderAPIKeysTab(w http.ResponseWriter, r *http.Request, projec
 		return
 	}
 
+	allProjects, err := s.sidebarProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	views := make([]templates.APIKey, 0, len(keys))
 	for _, k := range keys {
 		views = append(views, toAPIKeyView(k))
 	}
-	renderPage(w, r, templates.APIKeysTab(email, toProjectView(project), views, revealedKey, message))
+	renderPage(w, r, templates.APIKeysTab(email, toProjectView(project), allProjects, views, revealedKey, message))
 }
 
 func (s *Server) handleAPIKeysTab(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +63,7 @@ func (s *Server) handleAPIKeysTab(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "project not found", http.StatusNotFound)
 		return
 	}
-	s.renderAPIKeysTab(w, r, project, "", "")
+	s.renderAPIKeysTab(w, r, project, "", templates.Message{})
 }
 
 func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -72,13 +79,13 @@ func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseForm(); err != nil {
-		s.renderAPIKeysTab(w, r, project, "", "invalid form submission")
+		s.renderAPIKeysTab(w, r, project, "", errMsg("invalid form submission"))
 		return
 	}
 	name := r.FormValue("name")
 	scope, scopeOK := apikey.ParseScope(r.FormValue("scope"))
 	if name == "" || !scopeOK {
-		s.renderAPIKeysTab(w, r, project, "", "name is required and scope must be read or send")
+		s.renderAPIKeysTab(w, r, project, "", errMsg("name is required and scope must be read or send"))
 		return
 	}
 
@@ -97,11 +104,11 @@ func (s *Server) handleCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Scope:     string(scope),
 	}); err != nil {
 		s.Logger.Error().Err(err).Msg("failed to create api key")
-		s.renderAPIKeysTab(w, r, project, "", "failed to create api key")
+		s.renderAPIKeysTab(w, r, project, "", errMsg("failed to create api key"))
 		return
 	}
 
-	s.renderAPIKeysTab(w, r, project, raw, "")
+	s.renderAPIKeysTab(w, r, project, raw, templates.Message{})
 }
 
 func (s *Server) handleRevokeAPIKey(w http.ResponseWriter, r *http.Request) {

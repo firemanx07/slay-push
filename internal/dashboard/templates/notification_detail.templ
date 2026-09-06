@@ -7,13 +7,20 @@ templ recipientRows(recipients []Recipient) {
 		<tr><th>Device</th><th>Provider</th><th>Status</th><th>Message ID</th><th>Error</th><th>Attempts</th></tr>
 	</thead>
 	<tbody>
+		if len(recipients) == 0 {
+			@EmptyState(6, "No recipients resolved yet.")
+		}
 		for _, r := range recipients {
 			<tr>
-				<td>{ r.DeviceID }</td>
+				<td>@IDValue(r.DeviceID)</td>
 				<td>{ r.ProviderType }</td>
-				<td>{ r.Status }</td>
-				<td>{ r.ProviderMessageID }</td>
-				<td>{ r.ErrorMessage }</td>
+				<td>@StatusBadge(r.Status)</td>
+				<td>@IDValue(r.ProviderMessageID)</td>
+				if r.ErrorMessage == "" {
+					<td><span class="muted">&mdash;</span></td>
+				} else {
+					<td>{ r.ErrorMessage }</td>
+				}
 				<td>{ strconv.Itoa(int(r.AttemptCount)) }</td>
 			</tr>
 		}
@@ -35,18 +42,41 @@ templ RecipientsFragment(notificationID string, recipients []Recipient, terminal
 	}
 }
 
-templ NotificationDetail(userEmail string, notificationID string, status string, total int32, counts RecipientCounts, recipients []Recipient, terminal bool) {
-	@Layout("Notification "+notificationID, userEmail) {
-		<p><a href="/">&larr; Dashboard</a></p>
-		<h1>Notification <code>{ notificationID }</code></h1>
-		<p>Status: <mark>{ status }</mark> · Total: { strconv.Itoa(int(total)) }</p>
-		<p>
-			Queued { strconv.FormatInt(counts.Queued, 10) } ·
-			Sending { strconv.FormatInt(counts.Sending, 10) } ·
-			Sent { strconv.FormatInt(counts.Sent, 10) } ·
-			Delivered { strconv.FormatInt(counts.Delivered, 10) } ·
-			Failed { strconv.FormatInt(counts.Failed, 10) }
-		</p>
+templ NotificationDetail(userEmail string, project Project, allProjects []Project, notificationID string, status string, total int32, counts RecipientCounts, recipients []Recipient, terminal bool) {
+	@Layout("Notification "+notificationID, userEmail, Sidebar{Projects: allProjects, ProjectID: project.ID, ActiveNav: "notifications"}) {
+		<div class="page-header">
+			<h1>Notification <code>{ notificationID }</code></h1>
+		</div>
+		<div class="stat-row">
+			<div class="stat">
+				<span class="stat-label">Status</span>
+				@StatusBadge(status)
+			</div>
+			<div class="stat">
+				<span class="stat-label">Total</span>
+				<span class="stat-value">{ strconv.Itoa(int(total)) }</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Queued</span>
+				<span class="stat-value">{ strconv.FormatInt(counts.Queued, 10) }</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Sending</span>
+				<span class="stat-value">{ strconv.FormatInt(counts.Sending, 10) }</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Sent</span>
+				<span class="stat-value">{ strconv.FormatInt(counts.Sent, 10) }</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Delivered</span>
+				<span class="stat-value">{ strconv.FormatInt(counts.Delivered, 10) }</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Failed</span>
+				<span class="stat-value">{ strconv.FormatInt(counts.Failed, 10) }</span>
+			</div>
+		</div>
 		@RecipientsFragment(notificationID, recipients, terminal)
 	}
 }

@@ -8,75 +8,113 @@
 }
 
 :root {
-  --slay-purple: #7c3aed;
-  --slay-blue: #3b82f6;
-  --slay-pink: #ec4899;
-  --slay-cyan: #06b6d4;
-  --slay-glass-border: rgba(124, 58, 237, 0.18);
+  /* Pico scales its root font-size up at wider viewports (up to 131.25% on
+     large monitors), which — since virtually everything here is sized in
+     rem — inflates the whole dashboard on any normal desktop screen. Pin it
+     flat and smaller: this is a dense admin app, not prose. */
+  --pico-font-size: 87.5% !important;
 
-  --pico-primary: #7c3aed;
-  --pico-primary-background: #7c3aed;
-  --pico-primary-border: var(--pico-primary-background);
-  --pico-primary-underline: rgba(124, 58, 237, 0.5);
-  --pico-primary-hover: #6d28d9;
-  --pico-primary-hover-background: #6d28d9;
-  --pico-primary-hover-border: var(--pico-primary-hover-background);
-  --pico-primary-hover-underline: var(--pico-primary-hover);
-  --pico-primary-focus: rgba(124, 58, 237, 0.375);
-  --pico-primary-inverse: #fff;
+  --slay-purple: #8b5cf6;
+  --slay-blue: #38bdf8;
+  --slay-pink: #d946ef;
+  --slay-cyan: #22d3ee;
+  --slay-glass-border: rgba(139, 92, 246, 0.18);
+
+  --pico-primary: #8b5cf6 !important;
+  --pico-primary-background: #8b5cf6 !important;
+  --pico-primary-border: var(--pico-primary-background) !important;
+  --pico-primary-underline: rgba(139, 92, 246, 0.5) !important;
+  --pico-primary-hover: #7c3aed !important;
+  --pico-primary-hover-background: #7c3aed !important;
+  --pico-primary-hover-border: var(--pico-primary-hover-background) !important;
+  --pico-primary-hover-underline: var(--pico-primary-hover) !important;
+  --pico-primary-focus: rgba(139, 92, 246, 0.375) !important;
+  --pico-primary-inverse: #fff !important;
 
   --pico-card-background-color: rgba(255, 255, 255, 0.72);
   --pico-card-border-color: var(--slay-glass-border);
+
+  --status-success: #16a34a;
+  --status-warning: #b45309;
+  --status-danger: var(--pico-del-color);
+  --status-neutral: var(--pico-muted-color);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --slay-glass-border: rgba(167, 139, 250, 0.3);
+    --slay-glass-border: rgba(139, 92, 246, 0.3);
 
-    --pico-primary: #a78bfa;
-    --pico-primary-background: #7c3aed;
-    --pico-primary-border: var(--pico-primary-background);
-    --pico-primary-underline: rgba(167, 139, 250, 0.5);
-    --pico-primary-hover: #c4b5fd;
-    --pico-primary-hover-background: #8b5cf6;
-    --pico-primary-hover-border: var(--pico-primary-hover-background);
-    --pico-primary-hover-underline: var(--pico-primary-hover);
-    --pico-primary-focus: rgba(167, 139, 250, 0.375);
-    --pico-primary-inverse: #fff;
+    --pico-primary: #a78bfa !important;
+    --pico-primary-background: #8b5cf6 !important;
+    --pico-primary-border: var(--pico-primary-background) !important;
+    --pico-primary-underline: rgba(139, 92, 246, 0.5) !important;
+    --pico-primary-hover: #c4b5fd !important;
+    --pico-primary-hover-background: #9d75f8 !important;
+    --pico-primary-hover-border: var(--pico-primary-hover-background) !important;
+    --pico-primary-hover-underline: var(--pico-primary-hover) !important;
+    --pico-primary-focus: rgba(139, 92, 246, 0.375) !important;
+    --pico-primary-inverse: #fff !important;
 
-    --pico-background-color: #0b0f19;
-    --pico-card-background-color: rgba(17, 24, 39, 0.6);
+    --pico-background-color: #080b12 !important;
+    --pico-card-background-color: rgba(18, 26, 41, 0.6);
+
+    --status-success: #4ade80;
+    --status-warning: #fbbf24;
   }
 }
 
 h1,
 h2,
 h3,
-nav .brand {
+.brand {
   font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 
-nav .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
+h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  margin: 0;
 }
 
-nav .brand img {
-  width: 1.5rem;
-  height: 1.5rem;
+.page-header {
+  margin-bottom: var(--space-5);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--pico-h1-color) !important;
+}
+
+.brand:hover,
+.brand:focus {
+  color: var(--pico-h1-color) !important;
+}
+
+.brand img {
+  width: 1.75rem;
+  height: 1.75rem;
+  object-fit: contain;
 }
 
 article {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-}
-
-.auth-page {
-  max-width: 420px;
-  margin: 3rem auto 0;
 }
 
 .inline-form {
@@ -88,12 +126,375 @@ article {
   color: var(--pico-del-color);
 }
 
-.tabs {
-  border-bottom: 1px solid var(--pico-muted-border-color);
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.5rem;
+.muted {
+  color: var(--pico-muted-color);
 }
 
-.tabs a[aria-current="page"] {
-  font-weight: bold;
+.id-value {
+  display: inline-block;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.callout {
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-md);
+  border-left: 3px solid transparent;
+  font-size: 0.9375rem;
+}
+
+.callout-error {
+  color: var(--status-danger);
+  background: color-mix(in srgb, var(--status-danger) 10%, transparent);
+  border-left-color: var(--status-danger);
+}
+
+.callout-success {
+  color: var(--status-success);
+  background: color-mix(in srgb, var(--status-success) 10%, transparent);
+  border-left-color: var(--status-success);
+}
+
+.callout-note {
+  color: var(--pico-color);
+  background: var(--pico-card-sectioning-background-color, color-mix(in srgb, var(--pico-muted-color) 10%, transparent));
+  border-left-color: var(--pico-muted-border-color);
+}
+
+.callout-card-warning {
+  border-left: 3px solid var(--status-warning);
+}
+
+/* App shell: persistent sidebar (project switcher + section nav) + main
+   content column. Replaces the old top tab-bar layout. */
+.app-shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  flex-shrink: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-4);
+  border-right: 1px solid var(--pico-muted-border-color);
+}
+
+.sidebar-brand {
+  margin-bottom: var(--space-6);
+  padding: 0 var(--space-2);
+}
+
+.sidebar-section {
+  margin-bottom: var(--space-6);
+}
+
+.sidebar-section-label {
+  padding: 0 var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+}
+
+.sidebar-projects,
+.sidebar-nav {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-projects a,
+.sidebar-nav a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--pico-color);
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.sidebar-projects a:hover,
+.sidebar-nav a:hover {
+  background: color-mix(in srgb, var(--slay-purple) 8%, transparent);
+}
+
+.sidebar-projects a[aria-current="page"],
+.sidebar-nav a[aria-current="page"] {
+  background: color-mix(in srgb, var(--slay-purple) 14%, transparent);
+  color: var(--pico-primary);
+  font-weight: 600;
+}
+
+.sidebar-manage-link {
+  display: block;
+  margin-top: var(--space-1);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--pico-muted-color);
+  text-decoration: none;
+}
+
+.sidebar-manage-link:hover {
+  color: var(--pico-primary);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--pico-muted-border-color);
+}
+
+.sidebar-user {
+  margin-bottom: var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--pico-muted-color);
+  word-break: break-all;
+}
+
+.sidebar-footer button {
+  width: 100%;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+/* Auth shell: centered card for the unauthenticated login/setup screens. */
+.auth-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-5);
+}
+
+.auth-page {
+  width: 100%;
+  max-width: 420px;
+  margin: 0;
+}
+
+.auth-page .brand {
+  margin-bottom: var(--space-5);
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stat-card .stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+}
+
+.stat-card .stat-value {
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card .stat-value small {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pico-muted-color);
+  margin-left: 0.25rem;
+}
+
+/* Pico makes standalone inputs/selects/submit-buttons width:100% by
+   default — a reasonable default for the single narrow .auth-shell card,
+   but wrong for dense admin content: fields and buttons here get their own
+   deliberate size, independent of whatever card/table/page they sit in. */
+.app-content input:not([type="submit"], [type="checkbox"], [type="radio"]),
+.app-content select {
+  display: block;
+  max-width: 22rem;
+}
+
+.app-content textarea {
+  max-width: 100%;
+}
+
+.app-content button[type="submit"],
+.app-content input[type="submit"],
+.app-content [role="button"] {
+  width: auto;
+  /* Pico flex-grows every child of [role=group]/[role=search] equally; once
+     the input/select above are capped, an uncapped button would balloon
+     into their leftover space. Keep it content-sized in that context too. */
+  flex: 0 0 auto;
+}
+
+form[role="search"] {
+  margin-bottom: var(--space-5);
+}
+
+article > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+}
+
+article > header a[role="button"] {
+  font-size: 0.8125rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+table thead th {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+}
+
+table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--slay-purple) 6%, transparent);
+}
+
+.empty-state {
+  padding: var(--space-6) 0 !important;
+  text-align: center;
+  color: var(--pico-muted-color);
+}
+
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-1);
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.item-list li:last-child {
+  border-bottom: none;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-success {
+  background: color-mix(in srgb, var(--status-success) 16%, transparent);
+  color: var(--status-success);
+}
+
+.badge-warning {
+  background: color-mix(in srgb, var(--status-warning) 16%, transparent);
+  color: var(--status-warning);
+}
+
+.badge-danger {
+  background: color-mix(in srgb, var(--status-danger) 16%, transparent);
+  color: var(--status-danger);
+}
+
+.badge-neutral {
+  background: color-mix(in srgb, var(--status-neutral) 14%, transparent);
+  color: var(--status-neutral);
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.stat .stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+}
+
+.stat .stat-value {
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+button.danger,
+[role="button"].danger {
+  --pico-primary: var(--status-danger);
+  --pico-primary-background: var(--status-danger);
+  --pico-primary-border: var(--status-danger);
+  --pico-primary-hover: var(--status-danger);
+  --pico-primary-hover-background: var(--status-danger);
+  --pico-primary-hover-border: var(--status-danger);
+  --pico-primary-underline: var(--status-danger);
 }

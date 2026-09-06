@@ -1,12 +1,9 @@
 package templates
 
-templ ProjectsList(userEmail string, projects []Project, errorMessage string) {
-	@Layout("Projects", userEmail) {
-		<p><a href="/">&larr; Dashboard</a></p>
-		<h1>Projects</h1>
-		if errorMessage != "" {
-			<p class="error">{ errorMessage }</p>
-		}
+templ ProjectsList(userEmail string, projects []Project, message Message) {
+	@Layout("Projects", userEmail, Sidebar{Projects: projects}) {
+		@PageHeader("Projects")
+		@Callout(message)
 		<article>
 			<header>Create a project</header>
 			<form method="post" action="/projects">
@@ -15,10 +12,14 @@ templ ProjectsList(userEmail string, projects []Project, errorMessage string) {
 				<button type="submit">Create project</button>
 			</form>
 		</article>
-		<ul>
-			for _, p := range projects {
-				<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> <small>({ p.Slug }, { p.Status })</small></li>
-			}
-		</ul>
+		if len(projects) == 0 {
+			<p class="empty-state">No projects yet — create one above.</p>
+		} else {
+			<ul class="item-list">
+				for _, p := range projects {
+					<li><a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a> <small>({ p.Slug }, { p.Status })</small></li>
+				}
+			</ul>
+		}
 	}
 }

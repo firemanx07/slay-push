@@ -1,11 +1,12 @@
 package templates
 
 templ Login(errorMessage string) {
-	@Layout("Log in", "") {
+	@AuthLayout("Log in") {
 		<article class="auth-page">
+			@brand()
 			<hgroup>
-				<h1>slay-push</h1>
-				<p>Log in to the dashboard</p>
+				<h1>Log in</h1>
+				<p>Access your dashboard</p>
 			</hgroup>
 			if errorMessage != "" {
 				<p class="error">{ errorMessage }</p>

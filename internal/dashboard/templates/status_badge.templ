@@ -1,0 +1,26 @@
+package templates
+
+import "strings"
+
+// statusBadgeClass maps the various status vocabularies used across the
+// dashboard (device status, API key status, notification/recipient status,
+// yes/no for provider active) onto one shared success/warning/danger/neutral
+// scale.
+func statusBadgeClass(status string) string {
+	switch strings.ToLower(status) {
+	case "active", "sent", "delivered", "yes":
+		return "badge-success"
+	case "queued", "sending", "stale", "pending":
+		return "badge-warning"
+	case "invalid", "revoked", "failed", "no":
+		return "badge-danger"
+	default:
+		return "badge-neutral"
+	}
+}
+
+// StatusBadge renders a status value as a color-coded pill instead of bare
+// text.
+templ StatusBadge(status string) {
+	<span class={ "badge", statusBadgeClass(status) }>{ status }</span>
+}

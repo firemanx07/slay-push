@@ -55,9 +55,16 @@ func (s *Server) handleDevicesTab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	allProjects, err := s.sidebarProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	views := make([]templates.Device, 0, len(devices))
 	for _, d := range devices {
 		views = append(views, toDeviceView(d))
 	}
-	renderPage(w, r, templates.DevicesTab(email, toProjectView(project), views, externalID, status))
+	renderPage(w, r, templates.DevicesTab(email, toProjectView(project), allProjects, views, externalID, status))
 }

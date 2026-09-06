@@ -1,45 +1,102 @@
 package templates
 
-// Layout is the page shell every dashboard page renders inside. userEmail
-// is empty for unauthenticated pages (login/setup), which hides the
-// logged-in-user/logout controls from the header.
-templ Layout(title string, userEmail string) {
+templ head(title string) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<title>{ title } · Slay Push</title>
+		<link rel="stylesheet" href="/static/pico.min.css"/>
+		<link rel="stylesheet" href="/static/style.css"/>
+		<script src="/static/htmx.min.js"></script>
+	</head>
+}
+
+templ brand() {
+	<a href="/" class="brand">
+		<img src="/static/images/logo.svg" alt=""/>
+		<strong>Slay Push</strong>
+	</a>
+}
+
+// AuthLayout is the page shell for the unauthenticated login/setup screens —
+// a centered card, no sidebar.
+templ AuthLayout(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title } · Slay Push</title>
-			<link rel="stylesheet" href="/static/pico.min.css"/>
-			<link rel="stylesheet" href="/static/style.css"/>
-			<script src="/static/htmx.min.js"></script>
-		</head>
+		@head(title)
 		<body>
-			<header class="container">
-				<nav>
-					<ul>
-						<li>
-							<a href="/" class="brand">
-								<img src="/static/images/logo.svg" alt=""/>
-								<strong>Slay Push</strong>
-							</a>
-						</li>
-					</ul>
-					if userEmail != "" {
-						<ul>
-							<li>{ userEmail }</li>
-							<li>
-								<form method="post" action="/logout" class="inline-form">
-									<button type="submit" class="secondary outline">Log out</button>
-								</form>
-							</li>
-						</ul>
-					}
-				</nav>
-			</header>
-			<main class="container">
+			<main class="auth-shell">
 				{ children... }
 			</main>
+		</body>
+	</html>
+}
+
+templ sidebarNavLink(projectID, section, href, label string, active string) {
+	if active == section {
+		<a href={ templ.URL(href) } aria-current="page">{ label }</a>
+	} else {
+		<a href={ templ.URL(href) }>{ label }</a>
+	}
+}
+
+templ sidebar(userEmail string, sb Sidebar) {
+	<aside class="sidebar">
+		<div class="sidebar-brand">
+			@brand()
+		</div>
+		<div class="sidebar-section">
+			<div class="sidebar-section-label">Projects</div>
+			<ul class="sidebar-projects">
+				for _, p := range sb.Projects {
+					<li>
+						if p.ID == sb.ProjectID {
+							<a href={ templ.URL("/projects/" + p.ID) } aria-current="page">{ p.Name }</a>
+						} else {
+							<a href={ templ.URL("/projects/" + p.ID) }>{ p.Name }</a>
+						}
+					</li>
+				}
+			</ul>
+			<a href="/projects" class="sidebar-manage-link">Manage projects</a>
+		</div>
+		if sb.ProjectID != "" {
+			<div class="sidebar-section">
+				<div class="sidebar-section-label">Project</div>
+				<ul class="sidebar-nav">
+					<li>@sidebarNavLink(sb.ProjectID, "overview", "/projects/"+sb.ProjectID, "Overview", sb.ActiveNav)</li>
+					<li>@sidebarNavLink(sb.ProjectID, "providers", "/projects/"+sb.ProjectID+"/providers", "Providers", sb.ActiveNav)</li>
+					<li>@sidebarNavLink(sb.ProjectID, "api-keys", "/projects/"+sb.ProjectID+"/api-keys", "API Keys", sb.ActiveNav)</li>
+					<li>@sidebarNavLink(sb.ProjectID, "devices", "/projects/"+sb.ProjectID+"/devices", "Devices", sb.ActiveNav)</li>
+					<li>@sidebarNavLink(sb.ProjectID, "notifications", "/projects/"+sb.ProjectID+"/notifications", "Notifications", sb.ActiveNav)</li>
+				</ul>
+			</div>
+		}
+		<div class="sidebar-footer">
+			<div class="sidebar-user">{ userEmail }</div>
+			<form method="post" action="/logout" class="inline-form">
+				<button type="submit" class="outline secondary">Log out</button>
+			</form>
+		</div>
+	</aside>
+}
+
+// Layout is the app shell every authenticated dashboard page renders inside:
+// a persistent sidebar (project switcher + section nav) plus a main content
+// column.
+templ Layout(title string, userEmail string, sb Sidebar) {
+	<!DOCTYPE html>
+	<html lang="en">
+		@head(title)
+		<body>
+			<div class="app-shell">
+				@sidebar(userEmail, sb)
+				<div class="app-main">
+					<main class="app-content">
+						{ children... }
+					</main>
+				</div>
+			</div>
 		</body>
 	</html>
 }

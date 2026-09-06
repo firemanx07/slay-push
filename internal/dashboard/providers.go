@@ -20,7 +20,7 @@ func toProviderCredentialView(c postgres.ListProviderCredentialsByProjectRow) te
 	}
 }
 
-func (s *Server) renderProvidersTab(w http.ResponseWriter, r *http.Request, project postgres.Project, message string) {
+func (s *Server) renderProvidersTab(w http.ResponseWriter, r *http.Request, project postgres.Project, message templates.Message) {
 	email, err := s.currentUserEmail(r)
 	if err != nil {
 		s.Logger.Error().Err(err).Msg("failed to resolve dashboard user")
@@ -35,11 +35,18 @@ func (s *Server) renderProvidersTab(w http.ResponseWriter, r *http.Request, proj
 		return
 	}
 
+	allProjects, err := s.sidebarProjects(r.Context())
+	if err != nil {
+		s.Logger.Error().Err(err).Msg("failed to list projects")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
 	views := make([]templates.ProviderCredential, 0, len(credentials))
 	for _, c := range credentials {
 		views = append(views, toProviderCredentialView(c))
 	}
-	renderPage(w, r, templates.ProvidersTab(email, toProjectView(project), views, message))
+	renderPage(w, r, templates.ProvidersTab(email, toProjectView(project), allProjects, views, message))
 }
 
 func (s *Server) handleProvidersTab(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +60,7 @@ func (s *Server) handleProvidersTab(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "project not found", http.StatusNotFound)
 		return
 	}
-	s.renderProvidersTab(w, r, project, "")
+	s.renderProvidersTab(w, r, project, templates.Message{})
 }
 
 func (s *Server) handleUpsertProviderCredential(w http.ResponseWriter, r *http.Request) {
@@ -69,18 +76,18 @@ func (s *Server) handleUpsertProviderCredential(w http.ResponseWriter, r *http.R
 	}
 
 	if err := r.ParseForm(); err != nil {
-		s.renderProvidersTab(w, r, project, "invalid form submission")
+		s.renderProvidersTab(w, r, project, errMsg("invalid form submission"))
 		return
 	}
 	providerType := r.FormValue("provider")
 	credentialText := r.FormValue("credential")
 
 	if !provider.Known(providerType) {
-		s.renderProvidersTab(w, r, project, "unknown provider type")
+		s.renderProvidersTab(w, r, project, errMsg("unknown provider type"))
 		return
 	}
 	if !json.Valid([]byte(credentialText)) {
-		s.renderProvidersTab(w, r, project, "credential must be valid JSON")
+		s.renderProvidersTab(w, r, project, errMsg("credential must be valid JSON"))
 		return
 	}
 
@@ -99,11 +106,11 @@ func (s *Server) handleUpsertProviderCredential(w http.ResponseWriter, r *http.R
 		WrappedDek:   wrappedDEK,
 	}); err != nil {
 		s.Logger.Error().Err(err).Msg("failed to upsert provider credential")
-		s.renderProvidersTab(w, r, project, "failed to save credential")
+		s.renderProvidersTab(w, r, project, errMsg("failed to save credential"))
 		return
 	}
 
-	s.renderProvidersTab(w, r, project, "credential saved")
+	s.renderProvidersTab(w, r, project, okMsg("credential saved"))
 }
 
 func (s *Server) handleTestProviderCredential(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +126,7 @@ func (s *Server) handleTestProviderCredential(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := r.ParseForm(); err != nil {
-		s.renderProvidersTab(w, r, project, "invalid form submission")
+		s.renderProvidersTab(w, r, project, errMsg("invalid form submission"))
 		return
 	}
 	providerType := r.FormValue("provider")
@@ -130,36 +137,36 @@ func (s *Server) handleTestProviderCredential(w http.ResponseWriter, r *http.Req
 		Environment:  defaultCredentialEnvironment,
 	})
 	if err != nil {
-		s.renderProvidersTab(w, r, project, providerType+": no active credential configured")
+		s.renderProvidersTab(w, r, project, errMsg(providerType+": no active credential configured"))
 		return
 	}
 
 	plaintext, err := s.MasterKey.Open(stored.WrappedDek, stored.Credential)
 	if err != nil {
-		s.renderProvidersTab(w, r, project, providerType+": failed to decrypt stored credential")
+		s.renderProvidersTab(w, r, project, errMsg(providerType+": failed to decrypt stored credential"))
 		return
 	}
 
 	adapter, ok := provider.Get(providerType)
 	if !ok {
-		s.renderProvidersTab(w, r, project, providerType+": unknown provider")
+		s.renderProvidersTab(w, r, project, errMsg(providerType+": unknown provider"))
 		return
 	}
 
 	tester, ok := adapter.(provider.CredentialTester)
 	if !ok {
 		if !json.Valid(plaintext) {
-			s.renderProvidersTab(w, r, project, providerType+": stored credential is not valid JSON")
+			s.renderProvidersTab(w, r, project, errMsg(providerType+": stored credential is not valid JSON"))
 			return
 		}
-		s.renderProvidersTab(w, r, project, providerType+": credential shape looks valid (no live check available for this provider)")
+		s.renderProvidersTab(w, r, project, templates.Message{Text: providerType + ": credential shape looks valid (no live check available for this provider)"})
 		return
 	}
 
 	if err := tester.TestCredential(r.Context(), plaintext); err != nil {
-		s.renderProvidersTab(w, r, project, providerType+": test failed — "+err.Error())
+		s.renderProvidersTab(w, r, project, errMsg(providerType+": test failed — "+err.Error()))
 		return
 	}
 
-	s.renderProvidersTab(w, r, project, providerType+": credential test passed")
+	s.renderProvidersTab(w, r, project, okMsg(providerType+": credential test passed"))
 }

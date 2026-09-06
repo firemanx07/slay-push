@@ -1,14 +1,56 @@
 package templates
 
-templ ProjectOverview(userEmail string, project Project) {
-	@Layout(project.Name, userEmail) {
-		<p><a href="/projects">&larr; Projects</a></p>
-		<h1>{ project.Name }</h1>
-		@ProjectNav(project.ID, "overview")
+import "strconv"
+
+templ ProjectOverview(userEmail string, project Project, allProjects []Project, stats ProjectStats) {
+	@Layout(project.Name, userEmail, Sidebar{Projects: allProjects, ProjectID: project.ID, ActiveNav: "overview"}) {
+		@PageHeader(project.Name)
+		<div class="stat-cards">
+			<article class="stat-card">
+				<span class="stat-label">Devices</span>
+				<span class="stat-value">{ strconv.FormatInt(stats.DeviceCount, 10) }</span>
+			</article>
+			<article class="stat-card">
+				<span class="stat-label">Providers configured</span>
+				<span class="stat-value">{ strconv.Itoa(stats.ActiveProviderCount) }<small>/{ strconv.Itoa(stats.ProviderCount) } active</small></span>
+			</article>
+			<article class="stat-card">
+				<span class="stat-label">API keys</span>
+				<span class="stat-value">{ strconv.Itoa(stats.ActiveAPIKeyCount) }<small>/{ strconv.Itoa(stats.APIKeyCount) } active</small></span>
+			</article>
+			<article class="stat-card">
+				<span class="stat-label">Status</span>
+				@StatusBadge(project.Status)
+			</article>
+		</div>
 		<article>
-			<header>Overview</header>
+			<header>
+				<span>Recent notifications</span>
+				<a href={ templ.URL("/projects/" + project.ID + "/notifications") } role="button" class="outline">View all &rarr;</a>
+			</header>
+			if len(stats.RecentNotifications) == 0 {
+				<p class="empty-state">No notifications sent yet.</p>
+			} else {
+				<table>
+					<thead>
+						<tr><th>Status</th><th>Recipients</th><th>Created</th><th></th></tr>
+					</thead>
+					<tbody>
+						for _, n := range stats.RecentNotifications {
+							<tr>
+								<td>@StatusBadge(n.Status)</td>
+								<td>{ strconv.Itoa(int(n.TotalRecipients)) }</td>
+								<td>{ n.CreatedAt.Format("2006-01-02 15:04") }</td>
+								<td><a href={ templ.URL("/notifications/" + n.ID) }>Detail</a></td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+		</article>
+		<article>
+			<header>Project</header>
 			<p>Slug: <code>{ project.Slug }</code></p>
-			<p>Status: { project.Status }</p>
 		</article>
 	}
 }

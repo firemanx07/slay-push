@@ -33,6 +33,9 @@ where project_id = $1
   and metadata ->> 'device_uuid' = sqlc.arg(device_uuid)::text
 returning *;
 
+-- name: CountDevicesByProject :one
+select count(*) from devices where project_id = $1;
+
 -- name: ListDevicesByProject :many
 -- external_id/status filters are skipped when passed as an empty string.
 select d.id, d.project_id, d.token, d.platform, d.provider_type, d.status,

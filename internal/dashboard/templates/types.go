@@ -6,6 +6,14 @@ package templates
 
 import "time"
 
+// Message is a form-result notice — an error, a confirmation, or a neutral
+// note — rendered as a color-coded callout instead of plain paragraph text.
+// The zero value renders nothing.
+type Message struct {
+	Text string
+	Kind string // "error", "success", or "" for a neutral note
+}
+
 // Project is the dashboard's view of a postgres.Project.
 type Project struct {
 	ID        string
@@ -76,4 +84,23 @@ type Recipient struct {
 	ProviderMessageID string
 	ErrorMessage      string
 	AttemptCount      int32
+}
+
+// Sidebar carries everything the app shell's sidebar needs to render the
+// project switcher and, when a project is active, its section nav —
+// independent of whatever the page itself renders.
+type Sidebar struct {
+	Projects  []Project
+	ProjectID string // empty outside a project-scoped page
+	ActiveNav string // one of "overview", "providers", "api-keys", "devices", "notifications"
+}
+
+// ProjectStats summarizes a project for the overview page's stat cards.
+type ProjectStats struct {
+	DeviceCount         int64
+	ActiveProviderCount int
+	ProviderCount       int
+	ActiveAPIKeyCount   int
+	APIKeyCount         int
+	RecentNotifications []Notification
 }

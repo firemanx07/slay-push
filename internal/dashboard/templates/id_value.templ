@@ -1,0 +1,13 @@
+package templates
+
+// IDValue renders an opaque identifier (external ID, device ID, provider
+// message ID) as truncated monospace text with the full value available via
+// title/hover and copy — instead of an unstyled string that can blow out a
+// table's column widths. Empty values render as a muted placeholder.
+templ IDValue(value string) {
+	if value == "" {
+		<span class="muted">&mdash;</span>
+	} else {
+		<code class="id-value" title={ value }>{ value }</code>
+	}
+}

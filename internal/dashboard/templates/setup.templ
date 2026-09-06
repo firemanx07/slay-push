@@ -1,10 +1,11 @@
 package templates
 
 templ Setup(errorMessage string) {
-	@Layout("Setup", "") {
+	@AuthLayout("Setup") {
 		<article class="auth-page">
+			@brand()
 			<hgroup>
-				<h1>Welcome to slay-push</h1>
+				<h1>Welcome to Slay Push</h1>
 				<p>Create the first admin account to get started.</p>
 			</hgroup>
 			if errorMessage != "" {
