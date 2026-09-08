@@ -1,6 +1,6 @@
 module github.com/firemanx07/slay-push
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.1020
@@ -13,7 +13,7 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/rs/zerolog v1.35.1
 	github.com/sideshow/apns2 v0.25.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/net v0.58.0
 	golang.org/x/oauth2 v0.36.0
 )
