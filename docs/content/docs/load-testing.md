@@ -95,3 +95,42 @@ latency is dominated entirely by the outbound rate limiter pacing 500 recipients
 20/sec ceiling (500 ÷ 20 ≈ 25s, matching the observed p99/max) — raise
 `DEFAULT_OUTBOUND_RATE_LIMIT_RPS` if your provider account can sustain a higher rate and you want
 faster fanout delivery.
+
+## Worker chaos results
+
+Two tests run real worker processes against Postgres and Redis. Each worker is the test binary
+re-executed as a `send:expo` worker, and each provider call is appended to a ledger file. Both
+tests run only with `SLAYPUSH_CHAOS=1`:
+
+```bash
+SLAYPUSH_CHAOS=1 go test ./internal/dispatch/ -run TestChaos -count=1 -v -timeout 12m
+```
+
+Machine: Apple M3, 8 cores, macOS 26.4, Go 1.26.6, PostgreSQL 16.15, Redis 8.10, all local. Provider
+calls are a fake adapter.
+
+**Worker killed mid-send** (`TestChaos_KillMidSend`): 60 recipients, worker concurrency 10. The
+first worker blocks inside the provider call and is killed with SIGKILL while holding 10 sends. A
+second worker finishes the notification after asynq's recoverer re-queues the dead worker's tasks.
+Every recipient was in a terminal status 98 seconds after the kill in the logged run.
+
+| Result | Value |
+|---|---|
+| Recipients sent | 60 of 60 |
+| Recipients sent twice | 10 (exactly the sends in flight at the kill) |
+| Recipients never sent | 0 |
+| Notification status | `completed` |
+
+Delivery is at-least-once: a recipient whose send was in flight when its worker died is sent again.
+
+**Horizontal scaling** (`TestChaos_WorkerScaling`): 1,500 recipients, 100 ms per provider call,
+worker concurrency 10, no outbound rate limit. Every recipient was sent exactly once and every worker
+sent a share. Drain time covers fanout plus delivery. Each worker is capped at its concurrency divided
+by the provider latency, 10 ÷ 0.1 s = 100 recipients per second. Measured throughput per worker was
+92, 90 and 91 recipients per second at 1, 2 and 4 workers.
+
+| Workers | Drain time | Recipients per second |
+|---|---|---|
+| 1 | 16.3 s | 92 |
+| 2 | 8.4 s | 179 |
+| 4 | 4.1 s | 365 |
