@@ -245,7 +245,12 @@ func TestLive_ThrottledBacklogDrainsWithoutFailures(t *testing.T) {
 		t.Fatalf("fanout: %v", err)
 	}
 
-	counts := waitForTerminalRecipients(t, ctx, h, projectID, total, 90*time.Second)
+	// The limiter admits rps sends at once, then about rps sends per second.
+	drainBound := 30 * time.Second
+	if total > rps {
+		drainBound += time.Duration(total-rps) * time.Second / rps
+	}
+	counts := waitForTerminalRecipients(t, ctx, h, projectID, total, drainBound)
 	elapsed := time.Since(start)
 	waitForCompletedNotifications(t, ctx, h, projectID, 10*time.Second)
 	t.Logf("throttled: %d recipients at %d rps drained in %s, counts=%v",

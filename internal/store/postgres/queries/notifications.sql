@@ -21,8 +21,10 @@ select * from notifications where id = $1;
 -- name: SetNotificationStatus :exec
 update notifications set status = $2 where id = $1;
 
--- name: SetNotificationTotals :exec
-update notifications set total_recipients = $2 where id = $1;
+-- name: SetNotificationTotalFromRecipients :exec
+update notifications
+set total_recipients = (select count(*) from notification_recipients where notification_id = $1)
+where id = $1;
 
 -- name: CompleteNotification :exec
 update notifications set status = $2, completed_at = now() where id = $1;

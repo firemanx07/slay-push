@@ -6,6 +6,7 @@ package dispatch
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -46,28 +47,32 @@ var terminalRecipientStatuses = map[string]bool{
 
 // failRecipient marks a recipient failed with the given error code/message,
 // then completes its notification if that was the last outstanding recipient.
-func (h *Handlers) failRecipient(ctx context.Context, notificationID, recipientID uuid.UUID, code, message string) {
+// Failures are logged and returned.
+func (h *Handlers) failRecipient(ctx context.Context, notificationID, recipientID uuid.UUID, code, message string) error {
 	if err := h.DB.MarkRecipientFailed(ctx, postgres.MarkRecipientFailedParams{
 		ID:           postgres.UUIDFrom(recipientID),
 		ErrorCode:    postgres.TextFrom(code),
 		ErrorMessage: postgres.TextFrom(message),
 	}); err != nil {
 		h.Logger.Error().Err(err).Str("recipient_id", recipientID.String()).Msg("failed to mark recipient failed")
-		return
+		return fmt.Errorf("mark recipient failed: %w", err)
 	}
-	h.completeIfDone(ctx, notificationID)
+	return h.completeIfDone(ctx, notificationID)
 }
 
 // completeIfDone moves a processing notification to completed once every
 // one of its recipients is in a terminal status. It is safe to call from any
 // number of workers at once and at any point after fanout: the update is a
 // no-op until the notification is processing and all recipients are
-// terminal. Errors are logged, not returned, because the recipient outcome
-// it follows has already been recorded.
-func (h *Handlers) completeIfDone(ctx context.Context, notificationID uuid.UUID) {
+// terminal. A failure is logged and returned so the calling task can retry;
+// a retried send on a terminal recipient repeats this call without sending
+// again.
+func (h *Handlers) completeIfDone(ctx context.Context, notificationID uuid.UUID) error {
 	if _, err := h.DB.CompleteNotificationIfAllRecipientsTerminal(ctx, postgres.UUIDFrom(notificationID)); err != nil {
 		h.Logger.Error().Err(err).Str("notification_id", notificationID.String()).Msg("failed to complete notification")
+		return fmt.Errorf("complete notification: %w", err)
 	}
+	return nil
 }
 
 // isLastAttempt reports whether the current asynq task is on its final retry.

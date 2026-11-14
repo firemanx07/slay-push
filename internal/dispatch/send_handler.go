@@ -26,8 +26,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 	}
 	if terminalRecipientStatuses[recipient.Status] {
 		// Already reached a terminal state.
-		h.completeIfDone(ctx, payload.NotificationID)
-		return nil
+		return h.completeIfDone(ctx, payload.NotificationID)
 	}
 
 	if h.OutboundLimiter != nil {
@@ -49,20 +48,20 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		Environment:  environment,
 	})
 	if err != nil {
-		h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "no_credential", err.Error())
+		_ = h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "no_credential", err.Error())
 		// Not retryable: skip asynq's retry/backoff.
 		return fmt.Errorf("%w: no active %s credential for project: %w", asynq.SkipRetry, payload.ProviderType, err)
 	}
 
 	cred, err := h.Crypto.Open(credRow.WrappedDek, credRow.Credential)
 	if err != nil {
-		h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "credential_decrypt_failed", err.Error())
+		_ = h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "credential_decrypt_failed", err.Error())
 		return fmt.Errorf("%w: decrypt %s credential: %w", asynq.SkipRetry, payload.ProviderType, err)
 	}
 
 	adapter, ok := provider.Get(payload.ProviderType)
 	if !ok {
-		h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "unknown_provider", "no adapter registered for "+payload.ProviderType)
+		_ = h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "unknown_provider", "no adapter registered for "+payload.ProviderType)
 		return fmt.Errorf("%w: unknown provider %q", asynq.SkipRetry, payload.ProviderType)
 	}
 
@@ -81,8 +80,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		}); err != nil {
 			return err
 		}
-		h.completeIfDone(ctx, payload.NotificationID)
-		return nil
+		return h.completeIfDone(ctx, payload.NotificationID)
 
 	case provider.StatusInvalidToken:
 		if err := h.DB.MarkDeviceStatus(ctx, postgres.MarkDeviceStatusParams{
@@ -90,8 +88,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 		}); err != nil {
 			h.Logger.Error().Err(err).Str("device_id", payload.DeviceID.String()).Msg("failed to mark device invalid")
 		}
-		h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "invalid_token", errorMessage(sendErr, result.Err))
-		return nil // terminal — no retry
+		return h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "invalid_token", errorMessage(sendErr, result.Err))
 
 	case provider.StatusThrottled:
 		return &queue.ThrottledError{
@@ -102,7 +99,7 @@ func (h *Handlers) HandleSend(ctx context.Context, payload queue.SendPayload) er
 	default: // provider.StatusTransientError, provider.StatusUnknown
 		transientErr := firstNonNilErr(sendErr, result.Err, errors.New("transient send error"))
 		if isLastAttempt(ctx) {
-			h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "transient_error_exhausted", transientErr.Error())
+			_ = h.failRecipient(ctx, payload.NotificationID, payload.RecipientID, "transient_error_exhausted", transientErr.Error())
 		}
 		return transientErr
 	}

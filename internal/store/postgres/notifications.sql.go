@@ -231,16 +231,13 @@ func (q *Queries) SetNotificationStatus(ctx context.Context, arg SetNotification
 	return err
 }
 
-const setNotificationTotals = `-- name: SetNotificationTotals :exec
-update notifications set total_recipients = $2 where id = $1
+const setNotificationTotalFromRecipients = `-- name: SetNotificationTotalFromRecipients :exec
+update notifications
+set total_recipients = (select count(*) from notification_recipients where notification_id = $1)
+where id = $1
 `
 
-type SetNotificationTotalsParams struct {
-	ID              pgtype.UUID `json:"id"`
-	TotalRecipients int32       `json:"total_recipients"`
-}
-
-func (q *Queries) SetNotificationTotals(ctx context.Context, arg SetNotificationTotalsParams) error {
-	_, err := q.db.Exec(ctx, setNotificationTotals, arg.ID, arg.TotalRecipients)
+func (q *Queries) SetNotificationTotalFromRecipients(ctx context.Context, notificationID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setNotificationTotalFromRecipients, notificationID)
 	return err
 }

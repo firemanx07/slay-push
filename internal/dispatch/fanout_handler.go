@@ -67,7 +67,6 @@ func (h *Handlers) HandleFanout(ctx context.Context, payload queue.FanoutPayload
 		body = *n.Body
 	}
 
-	enqueued := 0
 	for _, d := range devices {
 		recipient, err := h.getOrCreateRecipient(ctx, n.ID, d.ID, d.ProviderType)
 		if err != nil {
@@ -87,20 +86,16 @@ func (h *Handlers) HandleFanout(ctx context.Context, payload queue.FanoutPayload
 		}); err != nil {
 			return fmt.Errorf("enqueue send for recipient %s: %w", postgres.UUIDTo(recipient.ID), err)
 		}
-		enqueued++
 	}
 
-	if err := h.DB.SetNotificationTotals(ctx, postgres.SetNotificationTotalsParams{
-		ID: n.ID, TotalRecipients: int32(enqueued),
-	}); err != nil {
+	if err := h.DB.SetNotificationTotalFromRecipients(ctx, n.ID); err != nil {
 		return fmt.Errorf("set notification totals: %w", err)
 	}
 	if err := h.DB.SetNotificationStatus(ctx, postgres.SetNotificationStatusParams{ID: n.ID, Status: "processing"}); err != nil {
 		return err
 	}
 	// Sends may all have finished before the notification became processing.
-	h.completeIfDone(ctx, payload.NotificationID)
-	return nil
+	return h.completeIfDone(ctx, payload.NotificationID)
 }
 
 // getOrCreateRecipient inserts a recipient row, or fetches the existing one

@@ -38,7 +38,7 @@ Teams that self-host to keep data residency or audit control (fintech and other 
 | ntfy, Gotify | Push to the operator's own devices. No SDK for apps, no per-end-user device registry. |
 | Novu, Dittofeed | Multi-channel orchestration and journeys. Broader than push. |
 | PushBase and similar | Self-hosted OneSignal-style tools, small or web-push focused. |
-| FCM, Expo push | Free direct integration without dashboard, tracking or device registry. |
+| FCM, Expo push | Free direct integration. Firebase offers hosted aggregate send and open reports. Delivery data stays in the provider's console, and the app backend stores its own device tokens. |
 
 Gap addressed: an open, self-hosted platform for mobile app push with an SDK, delivery tracking and a dashboard. OneSignal limits its Free plan to 1,000 monthly active users for mobile push since 2026-09-01 (new sign-ups) and 2026-10-01 (existing accounts).
 
