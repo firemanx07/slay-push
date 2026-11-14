@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/sideshow/apns2"
-	"golang.org/x/net/http2"
 
 	"github.com/firemanx07/slay-push/internal/provider"
 )
@@ -67,8 +66,9 @@ func newTestAdapter(t *testing.T, server *httptest.Server, credential []byte) *a
 	}
 	cc.client.Host = server.URL
 	cc.client.HTTPClient = &http.Client{
-		Transport: &http2.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test server uses a self-signed cert
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test server uses a self-signed cert
 		},
 	}
 	return a
@@ -355,8 +355,9 @@ func TestSend_PushError(t *testing.T) {
 	}
 	cc.client.Host = "https://127.0.0.1:1" // nothing listens here — connection refused
 	cc.client.HTTPClient = &http.Client{
-		Transport: &http2.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test-only, no real server involved
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test-only, no real server involved
 		},
 	}
 

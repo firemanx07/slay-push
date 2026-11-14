@@ -49,7 +49,7 @@ jobs:
           diff <(gofmt -l .) <(echo -n "")
       - name: templ generate check
         run: |
-          go install github.com/a-h/templ/cmd/templ@latest
+          go install "github.com/a-h/templ/cmd/templ@$(go list -m -f '{{.Version}}' github.com/a-h/templ)"
           templ generate
           git diff --exit-code -- '*_templ.go'
       - name: apply migrations
