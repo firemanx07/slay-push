@@ -37,9 +37,8 @@ const (
 	workerReadyLine      = "ready"
 )
 
-// TestMain turns the test binary into a send worker when
-// SLAYPUSH_TEST_WORKER=1, so chaos tests can start and kill real worker
-// processes. Otherwise it runs the package's tests.
+// TestMain runs a send worker when SLAYPUSH_TEST_WORKER=1 and the package's
+// tests otherwise.
 func TestMain(m *testing.M) {
 	if os.Getenv(envWorkerMode) == "1" {
 		os.Exit(runWorkerProcess())

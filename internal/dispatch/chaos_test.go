@@ -85,11 +85,13 @@ func TestChaos_KillMidSend(t *testing.T) {
 		t.Fatal(err)
 	}
 	killed.Kill(t)
+	killedAt := time.Now()
 	inFlight := len(readLedger(t, ledger))
 
 	startWorkerProc(t, h, ledger, "record", concurrency)
 	t.Logf("waiting up to 4m: asynq's recoverer re-queues a killed worker's tasks about once a minute")
 	counts := waitForTerminalRecipients(t, ctx, h, projectID, total, 4*time.Minute)
+	recovery := time.Since(killedAt)
 	waitForCompletedNotifications(t, ctx, h, projectID)
 
 	calls := map[string]int{}
@@ -114,7 +116,8 @@ func TestChaos_KillMidSend(t *testing.T) {
 	if duplicates != inFlight {
 		t.Errorf("recipients sent twice = %d, want %d (the sends in flight when the worker was killed)", duplicates, inFlight)
 	}
-	t.Logf("kill mid-send: %d of %d recipients were sent twice; the killed worker had %d sends in flight", duplicates, total, inFlight)
+	t.Logf("kill mid-send: %d of %d recipients were sent twice; the killed worker had %d sends in flight; every recipient was terminal %s after the kill",
+		duplicates, total, inFlight, recovery.Round(time.Second))
 }
 
 // TestChaos_WorkerScaling drains the same workload with 1, 2 and 4 worker

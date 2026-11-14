@@ -99,9 +99,8 @@ faster fanout delivery.
 ## Worker chaos results
 
 Two tests run real worker processes against Postgres and Redis. Each worker is the test binary
-re-executed as a `send:expo` worker, and each provider call is appended to a ledger file, so a
-killed worker still leaves a count of the calls it made. Both tests run only with
-`SLAYPUSH_CHAOS=1`:
+re-executed as a `send:expo` worker, and each provider call is appended to a ledger file. Both
+tests run only with `SLAYPUSH_CHAOS=1`:
 
 ```bash
 SLAYPUSH_CHAOS=1 go test ./internal/dispatch/ -run TestChaos -count=1 -v -timeout 12m
@@ -112,8 +111,8 @@ calls are a fake adapter.
 
 **Worker killed mid-send** (`TestChaos_KillMidSend`): 60 recipients, worker concurrency 10. The
 first worker blocks inside the provider call and is killed with SIGKILL while holding 10 sends. A
-second worker finishes the notification after asynq's recoverer re-queues the dead worker's tasks,
-about 100 seconds after the kill.
+second worker finishes the notification after asynq's recoverer re-queues the dead worker's tasks.
+Every recipient was in a terminal status 98 seconds after the kill in the logged run.
 
 | Result | Value |
 |---|---|
@@ -126,7 +125,9 @@ Delivery is at-least-once: a recipient whose send was in flight when its worker 
 
 **Horizontal scaling** (`TestChaos_WorkerScaling`): 1,500 recipients, 100 ms per provider call,
 worker concurrency 10, no outbound rate limit. Every recipient was sent exactly once and every worker
-sent a share.
+sent a share. Drain time covers fanout plus delivery. Each worker is capped at its concurrency divided
+by the provider latency, 10 ÷ 0.1 s = 100 recipients per second. Measured throughput per worker was
+92, 90 and 91 recipients per second at 1, 2 and 4 workers.
 
 | Workers | Drain time | Recipients per second |
 |---|---|---|
