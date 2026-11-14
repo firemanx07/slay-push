@@ -87,6 +87,10 @@ type testHarness struct {
 	client   *asynq.Client
 	redisOpt asynq.RedisConnOpt
 	project  postgres.Project
+
+	// masterKeyB64 is the base64 form of the key behind handlers.Crypto, for
+	// child worker processes that must open the same credentials.
+	masterKeyB64 string
 }
 
 // newTestHarness (Mode A): single goroutine, no live asynq.Server — wraps
@@ -129,14 +133,19 @@ func buildHarness(t *testing.T, ctx context.Context, p *pgxpool.Pool, client *as
 	if err != nil {
 		t.Fatalf("create test project: %v", err)
 	}
+	keyB64 := randomMasterKeyB64(t)
+	mk, err := crypto.LoadMasterKey(keyB64)
+	if err != nil {
+		t.Fatalf("load master key: %v", err)
+	}
 	h := &Handlers{
 		DB:        q,
 		Queue:     client,
 		Targeting: targeting.NewRegistry(q),
-		Crypto:    testMasterKey(t),
+		Crypto:    mk,
 		Logger:    zerolog.Nop(),
 	}
-	return &testHarness{handlers: h, queries: q, pool: p, client: client, redisOpt: ropt, project: project}
+	return &testHarness{handlers: h, queries: q, pool: p, client: client, redisOpt: ropt, project: project, masterKeyB64: keyB64}
 }
 
 // cleanupProjectRows deletes everything under projectID, in FK order.
@@ -188,16 +197,23 @@ func mustCreateCredential(t *testing.T, ctx context.Context, q *postgres.Queries
 	}
 }
 
-// testMasterKey generates a fresh random master key for one test. Each
-// harness gets its own — never share one across harnesses/tests, since a
-// credential sealed with one key can't be opened with another.
-func testMasterKey(t *testing.T) crypto.MasterKey {
+// randomMasterKeyB64 returns a fresh random master key in the base64 form
+// crypto.LoadMasterKey accepts.
+func randomMasterKeyB64(t *testing.T) string {
 	t.Helper()
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		t.Fatalf("generate master key: %v", err)
 	}
-	mk, err := crypto.LoadMasterKey(base64.StdEncoding.EncodeToString(raw))
+	return base64.StdEncoding.EncodeToString(raw)
+}
+
+// testMasterKey generates a fresh random master key for one test. Each
+// harness gets its own — never share one across harnesses/tests, since a
+// credential sealed with one key can't be opened with another.
+func testMasterKey(t *testing.T) crypto.MasterKey {
+	t.Helper()
+	mk, err := crypto.LoadMasterKey(randomMasterKeyB64(t))
 	if err != nil {
 		t.Fatalf("load master key: %v", err)
 	}
