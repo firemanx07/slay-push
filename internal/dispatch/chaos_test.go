@@ -90,7 +90,7 @@ func TestChaos_KillMidSend(t *testing.T) {
 	startWorkerProc(t, h, ledger, "record", concurrency)
 	t.Logf("waiting up to 4m: asynq's recoverer re-queues a killed worker's tasks about once a minute")
 	counts := waitForTerminalRecipients(t, ctx, h, projectID, total, 4*time.Minute)
-	waitForCompletedNotifications(t, ctx, h, projectID, 10*time.Second)
+	waitForCompletedNotifications(t, ctx, h, projectID)
 
 	calls := map[string]int{}
 	for _, e := range readLedger(t, ledger) {
@@ -115,4 +115,65 @@ func TestChaos_KillMidSend(t *testing.T) {
 		t.Errorf("recipients sent twice = %d, want %d (the sends in flight when the worker was killed)", duplicates, inFlight)
 	}
 	t.Logf("kill mid-send: %d of %d recipients were sent twice; the killed worker had %d sends in flight", duplicates, total, inFlight)
+}
+
+// TestChaos_WorkerScaling drains the same workload with 1, 2 and 4 worker
+// processes whose provider calls take 100 ms, and asserts every recipient is
+// sent exactly once and every worker takes part. It logs the drain time and
+// throughput for each worker count.
+func TestChaos_WorkerScaling(t *testing.T) {
+	requireChaos(t)
+	const (
+		total       = 1500
+		concurrency = 10
+	)
+	for _, workers := range []int{1, 2, 4} {
+		t.Run(fmt.Sprintf("%d_workers", workers), func(t *testing.T) {
+			h := newLiveHarness(t)
+			ctx := context.Background()
+			projectID := postgres.UUIDTo(h.project.ID)
+			mustCreateCredential(t, ctx, h.queries, h.handlers.Crypto, projectID)
+
+			ids, tokens := seedDevices(t, ctx, h, projectID, total)
+			n, err := h.handlers.CreateNotification(ctx, projectID, CreateNotificationRequest{DeviceIDs: ids, Title: "t", Body: "b"})
+			if err != nil {
+				t.Fatalf("CreateNotification: %v", err)
+			}
+			ledger := filepath.Join(t.TempDir(), "ledger.log")
+			procs := make([]*workerProc, workers)
+			for i := range procs {
+				procs[i] = startWorkerProc(t, h, ledger, "delay:100", concurrency)
+			}
+
+			start := time.Now()
+			if err := fanoutNotification(ctx, h, n); err != nil {
+				t.Fatalf("fanout: %v", err)
+			}
+			counts := waitForTerminalRecipients(t, ctx, h, projectID, total, 2*time.Minute)
+			elapsed := time.Since(start)
+			waitForCompletedNotifications(t, ctx, h, projectID)
+
+			byToken := map[string]int{}
+			byWorker := map[string]int{}
+			for _, e := range readLedger(t, ledger) {
+				byToken[e.Token]++
+				byWorker[e.WorkerID]++
+			}
+			if counts["sent"] != total {
+				t.Errorf("sent recipients = %d, want %d (counts=%v)", counts["sent"], total, counts)
+			}
+			for _, token := range tokens {
+				if byToken[token] != 1 {
+					t.Errorf("provider calls for %s = %d, want exactly 1", token, byToken[token])
+				}
+			}
+			for _, p := range procs {
+				if byWorker[p.id] == 0 {
+					t.Errorf("worker %s sent nothing", p.id)
+				}
+			}
+			t.Logf("scaling: %d workers drained %d recipients in %s (%.0f recipients/s), per worker %v",
+				workers, total, elapsed.Round(time.Millisecond), float64(total)/elapsed.Seconds(), byWorker)
+		})
+	}
 }

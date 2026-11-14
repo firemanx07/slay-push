@@ -135,10 +135,12 @@ func waitForTerminalRecipients(t *testing.T, ctx context.Context, h *testHarness
 	}
 }
 
-// waitForCompletedNotifications polls until every notification under
-// projectID has status "completed", failing the test on timeout.
-func waitForCompletedNotifications(t *testing.T, ctx context.Context, h *testHarness, projectID uuid.UUID, timeout time.Duration) {
+// waitForCompletedNotifications polls for up to 10 seconds until every
+// notification under projectID has status "completed", failing the test on
+// timeout.
+func waitForCompletedNotifications(t *testing.T, ctx context.Context, h *testHarness, projectID uuid.UUID) {
 	t.Helper()
+	const timeout = 10 * time.Second
 	deadline := time.Now().Add(timeout)
 	for {
 		var open int
@@ -196,7 +198,7 @@ func TestLive_BurstDrainsExactlyOnce(t *testing.T) {
 
 	counts := waitForTerminalRecipients(t, ctx, h, projectID, total, 60*time.Second)
 	elapsed := time.Since(start)
-	waitForCompletedNotifications(t, ctx, h, projectID, 10*time.Second)
+	waitForCompletedNotifications(t, ctx, h, projectID)
 	t.Logf("burst: %d recipients drained in %s (%.0f recipients/s), counts=%v",
 		total, elapsed.Round(time.Millisecond), float64(total)/elapsed.Seconds(), counts)
 
@@ -252,7 +254,7 @@ func TestLive_ThrottledBacklogDrainsWithoutFailures(t *testing.T) {
 	}
 	counts := waitForTerminalRecipients(t, ctx, h, projectID, total, drainBound)
 	elapsed := time.Since(start)
-	waitForCompletedNotifications(t, ctx, h, projectID, 10*time.Second)
+	waitForCompletedNotifications(t, ctx, h, projectID)
 	t.Logf("throttled: %d recipients at %d rps drained in %s, counts=%v",
 		total, rps, elapsed.Round(time.Millisecond), counts)
 
