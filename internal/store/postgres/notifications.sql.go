@@ -25,6 +25,27 @@ func (q *Queries) CompleteNotification(ctx context.Context, arg CompleteNotifica
 	return err
 }
 
+const completeNotificationIfAllRecipientsTerminal = `-- name: CompleteNotificationIfAllRecipientsTerminal :execrows
+update notifications n
+set status = 'completed', completed_at = now()
+where n.id = $1
+  and n.status = 'processing'
+  and n.total_recipients > 0
+  and (select count(*) from notification_recipients r where r.notification_id = n.id) = n.total_recipients
+  and not exists (
+    select 1 from notification_recipients r
+    where r.notification_id = n.id and r.status not in ('sent', 'delivered', 'failed')
+  )
+`
+
+func (q *Queries) CompleteNotificationIfAllRecipientsTerminal(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, completeNotificationIfAllRecipientsTerminal, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createNotification = `-- name: CreateNotification :one
 insert into notifications (project_id, idempotency_key, title, body, data, target_spec)
 values ($1, $2, $3, $4, $5, $6)
@@ -210,16 +231,13 @@ func (q *Queries) SetNotificationStatus(ctx context.Context, arg SetNotification
 	return err
 }
 
-const setNotificationTotals = `-- name: SetNotificationTotals :exec
-update notifications set total_recipients = $2 where id = $1
+const setNotificationTotalFromRecipients = `-- name: SetNotificationTotalFromRecipients :exec
+update notifications
+set total_recipients = (select count(*) from notification_recipients where notification_id = $1)
+where id = $1
 `
 
-type SetNotificationTotalsParams struct {
-	ID              pgtype.UUID `json:"id"`
-	TotalRecipients int32       `json:"total_recipients"`
-}
-
-func (q *Queries) SetNotificationTotals(ctx context.Context, arg SetNotificationTotalsParams) error {
-	_, err := q.db.Exec(ctx, setNotificationTotals, arg.ID, arg.TotalRecipients)
+func (q *Queries) SetNotificationTotalFromRecipients(ctx context.Context, notificationID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setNotificationTotalFromRecipients, notificationID)
 	return err
 }

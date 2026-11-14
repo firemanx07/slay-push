@@ -5,6 +5,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- A notification now moves from `processing` to `completed` (with `completed_at` set) once every recipient has reached a terminal status (`sent`, `delivered` or `failed`). Previously only a notification with no recipients ever completed; all others stayed `processing` indefinitely.
+
 ### Added
 - `server reset-password --email <email>` CLI subcommand — the recovery path for a lost dashboard
   admin password. Accepts the new password on stdin rather than a flag, so the command's own

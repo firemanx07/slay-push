@@ -21,11 +21,25 @@ select * from notifications where id = $1;
 -- name: SetNotificationStatus :exec
 update notifications set status = $2 where id = $1;
 
--- name: SetNotificationTotals :exec
-update notifications set total_recipients = $2 where id = $1;
+-- name: SetNotificationTotalFromRecipients :exec
+update notifications
+set total_recipients = (select count(*) from notification_recipients where notification_id = $1)
+where id = $1;
 
 -- name: CompleteNotification :exec
 update notifications set status = $2, completed_at = now() where id = $1;
+
+-- name: CompleteNotificationIfAllRecipientsTerminal :execrows
+update notifications n
+set status = 'completed', completed_at = now()
+where n.id = $1
+  and n.status = 'processing'
+  and n.total_recipients > 0
+  and (select count(*) from notification_recipients r where r.notification_id = n.id) = n.total_recipients
+  and not exists (
+    select 1 from notification_recipients r
+    where r.notification_id = n.id and r.status not in ('sent', 'delivered', 'failed')
+  );
 
 -- name: ListNotificationsByProject :many
 select * from notifications
