@@ -44,14 +44,29 @@ var terminalRecipientStatuses = map[string]bool{
 	"failed":    true,
 }
 
-// failRecipient marks a recipient failed with the given error code/message.
-func (h *Handlers) failRecipient(ctx context.Context, recipientID uuid.UUID, code, message string) {
+// failRecipient marks a recipient failed with the given error code/message,
+// then completes its notification if that was the last outstanding recipient.
+func (h *Handlers) failRecipient(ctx context.Context, notificationID, recipientID uuid.UUID, code, message string) {
 	if err := h.DB.MarkRecipientFailed(ctx, postgres.MarkRecipientFailedParams{
 		ID:           postgres.UUIDFrom(recipientID),
 		ErrorCode:    postgres.TextFrom(code),
 		ErrorMessage: postgres.TextFrom(message),
 	}); err != nil {
 		h.Logger.Error().Err(err).Str("recipient_id", recipientID.String()).Msg("failed to mark recipient failed")
+		return
+	}
+	h.completeIfDone(ctx, notificationID)
+}
+
+// completeIfDone moves a processing notification to completed once every
+// one of its recipients is in a terminal status. It is safe to call from any
+// number of workers at once and at any point after fanout: the update is a
+// no-op until the notification is processing and all recipients are
+// terminal. Errors are logged, not returned, because the recipient outcome
+// it follows has already been recorded.
+func (h *Handlers) completeIfDone(ctx context.Context, notificationID uuid.UUID) {
+	if _, err := h.DB.CompleteNotificationIfAllRecipientsTerminal(ctx, postgres.UUIDFrom(notificationID)); err != nil {
+		h.Logger.Error().Err(err).Str("notification_id", notificationID.String()).Msg("failed to complete notification")
 	}
 }
 

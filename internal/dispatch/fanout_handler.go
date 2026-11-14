@@ -95,7 +95,12 @@ func (h *Handlers) HandleFanout(ctx context.Context, payload queue.FanoutPayload
 	}); err != nil {
 		return fmt.Errorf("set notification totals: %w", err)
 	}
-	return h.DB.SetNotificationStatus(ctx, postgres.SetNotificationStatusParams{ID: n.ID, Status: "processing"})
+	if err := h.DB.SetNotificationStatus(ctx, postgres.SetNotificationStatusParams{ID: n.ID, Status: "processing"}); err != nil {
+		return err
+	}
+	// Sends may all have finished before the notification became processing.
+	h.completeIfDone(ctx, payload.NotificationID)
+	return nil
 }
 
 // getOrCreateRecipient inserts a recipient row, or fetches the existing one

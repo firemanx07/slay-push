@@ -66,13 +66,16 @@ func TestHandleFanout_HappyPath(t *testing.T) {
 		}
 	})
 
-	t.Run("notification status stays processing after all recipients terminal", func(t *testing.T) {
+	t.Run("notification completes once all recipients are terminal", func(t *testing.T) {
 		got, err := h.queries.GetNotification(ctx, postgres.GetNotificationParams{ID: n.ID, ProjectID: postgres.UUIDFrom(projectID)})
 		if err != nil {
 			t.Fatalf("GetNotification: %v", err)
 		}
-		if got.Status != "processing" {
-			t.Errorf("notification status = %q, want %q (nothing transitions it to completed on the non-zero-recipient path — if this now fails, that behavior changed and this assertion should be updated deliberately)", got.Status, "processing")
+		if got.Status != "completed" {
+			t.Errorf("notification status = %q, want %q", got.Status, "completed")
+		}
+		if !got.CompletedAt.Valid {
+			t.Error("notification completed_at is unset, want set")
 		}
 	})
 }
